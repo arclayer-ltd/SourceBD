@@ -40,15 +40,15 @@ CI checks required on both branches, and the founder as required reviewer of the
 environment. Tags `vYYYY.MM.DD-N` stay optional pins.
 
 ```bash
-gh api -X PATCH repos/Rezx100/SourceBD -F allow_auto_merge=true
+gh api -X PATCH repos/arclayer-ltd/SourceBD -F allow_auto_merge=true
 ```
 
 ```bash
-for b in development main; do printf '%s' '{"required_status_checks":{"strict":false,"contexts":["verify","unit-tests","unit-tests-slow","http-boundary","migrations","python-tests"]},"enforce_admins":false,"required_pull_request_reviews":null,"restrictions":null,"allow_force_pushes":false,"allow_deletions":false}' | gh api -X PUT repos/Rezx100/SourceBD/branches/$b/protection --input -; done
+for b in development main; do printf '%s' '{"required_status_checks":{"strict":false,"contexts":["verify","unit-tests","unit-tests-slow","http-boundary","migrations","python-tests"]},"enforce_admins":false,"required_pull_request_reviews":null,"restrictions":null,"allow_force_pushes":false,"allow_deletions":false}' | gh api -X PUT repos/arclayer-ltd/SourceBD/branches/$b/protection --input -; done
 ```
 
 ```bash
-printf '%s' '{"reviewers":[{"type":"User","id":150103177}],"prevent_self_review":false}' | gh api -X PUT repos/Rezx100/SourceBD/environments/production --input -
+printf '%s' '{"reviewers":[{"type":"User","id":150103177}],"prevent_self_review":false}' | gh api -X PUT repos/arclayer-ltd/SourceBD/environments/production --input -
 ```
 
 ---
@@ -57,7 +57,7 @@ printf '%s' '{"reviewers":[{"type":"User","id":150103177}],"prevent_self_review"
 
 | Remote | URL |
 |--------|-----|
-| `origin` | `https://github.com/Rezx100/SourceBD.git` |
+| `origin` | `https://github.com/arclayer-ltd/SourceBD.git` |
 | `old-sbi` | Legacy `pixelpoint100/sbi` (reference only) |
 
 **Never force-push** to `main` or `development`.
@@ -146,7 +146,7 @@ rsync -a /opt/sourcebd/etl/parsed/ /root/etl-preserve/parsed/
 rsync -a /opt/sourcebd/etl/logs/   /root/etl-preserve/logs/
 
 # 3. Clone fresh repo (use deploy key or HTTPS with token on VPS)
-git clone -b main https://github.com/Rezx100/SourceBD.git /opt/sourcebd-new
+git clone -b main https://github.com/arclayer-ltd/SourceBD.git /opt/sourcebd-new
 cp /root/sourcebd.env.migrate /opt/sourcebd-new/.env
 chmod 600 /opt/sourcebd-new/.env
 
