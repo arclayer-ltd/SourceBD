@@ -15,7 +15,7 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
-REPO = "Rezx100/SourceBD"
+REPO = "arclayer-ltd/SourceBD"
 API = "https://api.github.com"
 
 

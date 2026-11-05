@@ -18,7 +18,7 @@
 # Pre-reqs on the VPS (one-time bootstrap, not handled by this script):
 #   - docker + docker-compose
 #   - caddy (apt-get install caddy)
-#   - git clone https://github.com/Rezx100/SourceBD.git /opt/sourcebd
+#   - git clone https://github.com/arclayer-ltd/SourceBD.git /opt/sourcebd
 #   - /opt/sourcebd/.env populated (see ops/deploy/README.md)
 #   - /etc/caddy/Caddyfile -> /opt/sourcebd/ops/Caddyfile (symlink)
 #

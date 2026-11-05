@@ -158,3 +158,12 @@ Rules of thumb:
 ## Ambiguity
 
 If a spec is ambiguous, ask ONE clarifying question and wait. Do not invent.
+
+## Repository home
+
+This repo is `arclayer-ltd/SourceBD`. It moved from `Rezx100/SourceBD` on 2026-11-06. Old URLs redirect, so never create a repo with this name under Rezx100.
+
+- Remote: `https://github.com/arclayer-ltd/SourceBD.git`. If a clone still names the old owner, run `git remote set-url origin` with this URL.
+- Access: the `gh` accounts `Rezx100` and `arclayers` both own the org, so pushing and `gh` work with the active login. Repo secrets and variables moved with the repo; never put their values in files.
+- Limits: the org is on GitHub's Free plan, with no card on file, so private repos' Actions minutes stop when spent. Public repos are free.
+- Deploy: Production runs on a VPS through `deploy-production.yml` after CI passes on `main`, with the `production` environment approval. The server's `origin` may still use the old URL, which follows the redirect; update it if a fetch fails.
