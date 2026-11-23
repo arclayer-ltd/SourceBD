@@ -45,6 +45,7 @@ On pull requests: `reviewed` means the reviewer has read it and is satisfied.
 | Reviewer | Whether a pull request is right. The only role that lets one merge | `roles/reviewer.md` |
 | Releaser | Getting `development` live, applying database changes, proving it works, closing issues | `roles/releaser.md` |
 | Watch | The live system: stale data, failed runs, errors, things that drifted | `roles/watch.md` |
+| Critic | How the product looks and feels to use: design, clarity, trust | `roles/critic.md` |
 | Janitor | Deleting what nothing uses | `roles/janitor.md` |
 
 No role does another's job. A builder never merges its own work. A reviewer never fixes what it
@@ -61,7 +62,7 @@ reviews; it says what is wrong and the builder fixes it. The releaser never chan
 4. The releaser takes `development` to `main`, applies any database change the release needs,
    watches the deploy, and checks each merged issue's "done when" on the live site. Seen working:
    the issue is closed. Not working: it goes back to `ready` with what was seen.
-5. The watch and the janitor feed the queue with what they find; they do not jump it.
+5. The watch, the critic and the janitor feed the queue with what they find; they do not jump it.
 
 ## The founder's part
 
