@@ -16,6 +16,9 @@ insert into auth.users (id, email, raw_user_meta_data) values
   ('00000000-0000-4000-8000-00000000d134', 'member-0134@example.invalid',   '{"role":"buyer"}'::jsonb)
 on conflict do nothing;
 
+-- Sign-up never makes an admin (0159); the role is set on the profile afterwards.
+update public.profiles set role = 'admin' where id = '00000000-0000-4000-8000-00000000a134';
+
 insert into public.suppliers (id, slug, company_name, company_name_norm, city, district, is_published, is_sanctioned, claimed_by) values
   ('00000000-0000-4000-8000-0000000a1134', 'ci-0134-knit', 'CI 0134 Knit Ltd', 'ci 0134 knit ltd', 'Dhaka', 'Dhaka', false, false, '00000000-0000-4000-8000-00000000c134'),
   ('00000000-0000-4000-8000-0000000a2134', 'ci-0134-house', 'CI 0134 House', 'ci 0134 house', 'Dhaka', 'Dhaka', false, false, null);

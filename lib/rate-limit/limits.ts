@@ -100,13 +100,21 @@ export function classifyRoute(
   return null;
 }
 
-export function leftmostIp(headers: Headers): string {
-  const xff = headers.get("x-forwarded-for");
-  if (xff) {
-    const first = xff.split(",")[0]?.trim();
-    if (first) return first;
-  }
-  const real = headers.get("x-real-ip");
-  if (real) return real.trim();
+/**
+ * The visitor's own address, for per-address limits.
+ *
+ * The proxy in front of the site copies the visitor's address into `x-real-ip` (from the address
+ * the CDN reports). `x-forwarded-for` is NOT the visitor here: the proxy overwrites it with the
+ * machine that connected to it, which is one of the CDN's, so a limit keyed on it is shared by
+ * every visitor who happens to arrive through the same CDN machine. It is read only as a last
+ * resort, for a request that reached the site without the proxy's header.
+ */
+export function visitorAddress(headers: Headers): string {
+  const real = headers.get("x-real-ip")?.trim();
+  if (real) return real;
+  const cdn = headers.get("cf-connecting-ip")?.trim();
+  if (cdn) return cdn;
+  const first = headers.get("x-forwarded-for")?.split(",")[0]?.trim();
+  if (first) return first;
   return "0.0.0.0";
 }
