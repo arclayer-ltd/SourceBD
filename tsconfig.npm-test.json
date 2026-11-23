@@ -333,6 +333,8 @@
     "lib/dashboard/selection.ts",
     "lib/dashboard/selection.test.ts",
     "lib/rate-limit/limits.test.ts",
+    "lib/rate-limit/check.ts",
+    "lib/rate-limit/check.test.ts",
     "lib/ledger/request-headers.test.ts",
     "lib/ledger/file-fingerprint.ts",
     "lib/ledger/note.test.ts",

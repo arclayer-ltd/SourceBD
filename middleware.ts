@@ -23,7 +23,7 @@ import { sessionUserId } from "@/lib/supabase/session-user";
 import {
   RATE_LIMITS,
   classifyRoute,
-  leftmostIp,
+  visitorAddress,
   type RateLimitClass,
 } from "@/lib/rate-limit/limits";
 import { rlCheck } from "@/lib/rate-limit/check";
@@ -99,9 +99,9 @@ export async function middleware(req: NextRequest) {
       cachedUserId = await sessionUserId(supabase);
       // Unauthed hits on /api/v1/* still get bucketed (by IP) so a logged-out
       // attacker cannot bypass the gate by omitting cookies.
-      ident = cachedUserId ?? leftmostIp(req.headers);
+      ident = cachedUserId ?? visitorAddress(req.headers);
     } else {
-      ident = leftmostIp(req.headers);
+      ident = visitorAddress(req.headers);
     }
     if (needsAuthGate && cachedUserId) {
       // Marked handled so a refused request does not leave a rejection unheard;
