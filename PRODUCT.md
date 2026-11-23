@@ -2,9 +2,8 @@
 
 <!-- impeccable:product-schema 1 -->
 
-Drawn from the founder's own records (`AGENTS.md`, `context/agent-brief.md`,
-`context/feature-specs/ds-rebuild-must-stay.md` §2) on 27 Sep 2026. Those files
-stay the authority; this is the short version for design work.
+What SourceBD is and the decisions about it that are in force. This file is the authority on the
+product; the code is the authority on how it is built.
 
 ## Platform
 
@@ -63,8 +62,7 @@ state the fact and where it came from.
 
 ## Evidence on Hand
 
-Live production data: about 10,900 companies, 10,266 published. Real records
-for testing are listed in `ds-rebuild-must-stay.md` §3. No testimonials, customer
+Live production data: about 10,900 companies, 10,266 published. No testimonials, customer
 logos or benchmarks exist; none may be invented.
 
 ## Product Principles
@@ -78,3 +76,30 @@ logos or benchmarks exist; none may be invented.
 
 WCAG 2.2 AA; contrast pairs are tested in `lib/design/tokens.ts`. Works with
 reduced motion and at 320px.
+
+## Source trust order
+
+Higher overrides lower. A fact from a lower tier never replaces one from a higher tier.
+
+1. Government and regulators in Bangladesh (EPB, RSC, RJSC, DIFE, BEPZA).
+2. Industry registers (BGMEA, BKMEA, BTMA, BGAPMEA).
+3. Certificate bodies (WRAP, OEKO-TEX, GOTS and the like).
+4. Brand supplier lists (H&M, ASOS, M&S, Next and the like).
+5. Foreign regulators and sanctions lists (UFLPA, US withhold-release orders, OFAC, EU, UK).
+6. Everything else: cross-check only. It never creates a supplier and never stands alone.
+
+A supplier is published only with at least one record from tiers 1 to 3 behind it.
+
+## Decisions in force
+
+- The product is free while in beta. Paid plans exist in the data model (Starter, Growth,
+  Enterprise) but nothing can be bought yet.
+- Signed-out visitors see every supplier field except contact details.
+- A register's current page is the truth for that register's own fields and shows without review.
+- EPB is a government register: its evidence and HS codes show whenever EPB has them. EPB alone
+  never creates a supplier.
+- BGMEA registration numbers show only when backed by a BGMEA record.
+- Workers means production workers: male plus female, never the sum of BGMEA's three figures.
+- Product counts leave out sanctioned suppliers, so each count equals the search it opens.
+- Customs shipment data is kept for one year from the day it was fetched, as agreed with Volza.
+- An internal score orders search results. It is a sorting aid, never shown, never described.
