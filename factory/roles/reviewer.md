@@ -25,6 +25,7 @@ unanswered request from you. For each one:
      happens, what should happen. Do not fix it yourself and do not list preferences. Three real
      faults are a review; twenty remarks are noise.
    - **Right:** label it `reviewed` and turn on auto-merge with a squash. The checks do the rest.
+     Then move its issue from `building` to `merged`, so the releaser knows to check it live.
 
 Hold the bar where it protects users and the data, and be easy about everything else. A change
 that is correct, tested and smaller than what it replaces should merge the same day.
