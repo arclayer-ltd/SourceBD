@@ -366,8 +366,7 @@ export function arFashionInput(): RecordInput {
 
 // ---------------------------------------------------------------------------
 // Zaheen Knitwears — the 100-character name, one source, an RSC row behind
-// schedule. Not sanctioned on production; the gallery renders it as a labelled
-// sanctioned SAMPLE.
+// schedule. Not sanctioned on production.
 // ---------------------------------------------------------------------------
 
 export function zaheenSampleInput(): RecordInput & {
@@ -433,7 +432,6 @@ export function zaheenSampleInput(): RecordInput & {
     hscodes: [],
     workers: { value: 1634, source: "RSC", fetched_at: "2026-08-07T05:56:42.605291+00:00" },
     today: TODAY,
-    sanctionSample: true,
     leaked: {
       email_primary: "leak-test@example.invalid",
       phones: ["+880 1700 000000"],
@@ -444,54 +442,25 @@ export function zaheenSampleInput(): RecordInput & {
   };
 }
 
-/** The same record with production's own sanction flag set, for the states no sample flag can prove. */
+/**
+ * The sanctioned state, on a placeholder company. Production holds no sanctioned
+ * supplier, and a real, named company is never marked sanctioned here: the name
+ * and slug are placeholders, and `fixtures.test.ts` fails if they ever match a
+ * real fixture.
+ */
 export function sanctionedInput(): RecordInput {
   const base = zaheenSampleInput();
   return {
     ...base,
-    profile: { ...base.profile, supplier: { ...base.profile.supplier, is_sanctioned: true } },
-    sanctionSample: undefined,
-  };
-}
-
-/**
- * A flagged record WITH the watchlist rows behind the flag.
- *
- * Production has 13,366 `sanctions_list_entries` and, today, zero ACTIVE
- * `sanctions_screening` rows — so no real record carries this payload and the
- * populated path had no fixture at all. The shape is the live
- * `buyer_supplier_profile`'s own `sanc` CTE (`list`, `matched_name`,
- * `list_entry_ref`, `screened_at`, `source_url`, `listed_date`), and the list
- * values are real enum members from `sanctions_list_entries`.
- *
- * Two rows on purpose: one with an entry URL and one without, because the
- * section links only where a link exists.
- */
-export function sanctionedWithEvidenceInput(): RecordInput {
-  const base = sanctionedInput();
-  return {
-    ...base,
     profile: {
       ...base.profile,
-      sanctions: [
-        {
-          list: "uflpa",
-          matched_name: "ZAHEEN KNITWEARS LIMITED",
-          list_entry_ref: "UFLPA-2024-0117",
-          screened_at: "2026-09-18T05:47:07.954625+00:00",
-          listed_date: "2024-06-11",
-          source_url: "https://www.dhs.gov/uflpa-entity-list#UFLPA-2024-0117",
-        },
-        {
-          list: "ofac_sdn",
-          matched_name: "Zaheen Knitwears Ltd",
-          list_entry_ref: null,
-          screened_at: "2026-09-18T05:47:07.954625+00:00",
-          listed_date: null,
-          source_url: null,
-        },
-      ],
-    } as unknown as ProfilePayload,
+      supplier: {
+        ...base.profile.supplier,
+        company_name: "[Sanctioned supplier]",
+        slug: "sanctioned-supplier-placeholder",
+        is_sanctioned: true,
+      },
+    },
   };
 }
 

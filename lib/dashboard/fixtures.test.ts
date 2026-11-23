@@ -294,17 +294,17 @@ describe("no fixture invents a fact about a named company", () => {
     for (const [id, slugs] of byId) assert.equal(slugs.size, 1, `${id} is used for ${[...slugs].join(" and ")}`);
   });
 
-  it("no fixture claims a company is sanctioned; production holds none, so the one sanctioned screen is flagged as a sample", () => {
+  it("no fixture marks a real company sanctioned; the one sanctioned state is a placeholder", () => {
     for (const { name, input } of FIXTURES) {
       assert.equal(input.profile.supplier.is_sanctioned, false, `${name} marks a real company sanctioned`);
     }
     // `select count(*) from suppliers where is_sanctioned` was 0 on 20 Sep 2026.
-    const sample = zaheenSampleInput();
-    assert.equal(sample.sanctionSample, true, "the gallery's sanctioned screen must say it is a sample");
-    assert.equal(sample.profile.supplier.is_sanctioned, false);
-    const real = sanctionedInput();
-    assert.equal(real.profile.supplier.is_sanctioned, true);
-    assert.equal(real.sanctionSample, undefined);
+    const sanctioned = sanctionedInput().profile.supplier;
+    assert.equal(sanctioned.is_sanctioned, true);
+    for (const { name, input } of FIXTURES) {
+      assert.notEqual(sanctioned.company_name, input.profile.supplier.company_name, `the sanctioned placeholder carries ${name}'s real name`);
+      assert.notEqual(sanctioned.slug, input.profile.supplier.slug, `the sanctioned placeholder carries ${name}'s real slug`);
+    }
   });
 
   it("every building a fixture names is exported, so a test cannot misspell one into passing", () => {

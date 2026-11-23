@@ -17,7 +17,6 @@ export type ComposerTarget = {
   place: string | null;
   type: string;
   sanctioned: boolean;
-  sanctionSample?: boolean;
 };
 
 /** What the composer starts with: the line a buyer arrived from, or one of their own products. */
