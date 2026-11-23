@@ -19,6 +19,9 @@ insert into auth.users (id, email, raw_user_meta_data) values
   ('00000000-0000-4000-8000-00000000e147', 'susp-0147@example.invalid',    '{"role":"buyer"}'::jsonb)
 on conflict do nothing;
 
+-- Sign-up never makes an admin (0159); the role is set on the profile afterwards.
+update public.profiles set role = 'admin' where id = '00000000-0000-4000-8000-00000000a147';
+
 update public.profiles set plan_tier = 'growth' where id in ('00000000-0000-4000-8000-00000000b147', '00000000-0000-4000-8000-00000000e147');
 update public.profiles set plan_tier = 'enterprise' where id = '00000000-0000-4000-8000-00000000c147';
 update public.profiles set is_suspended = true where id = '00000000-0000-4000-8000-00000000e147';
