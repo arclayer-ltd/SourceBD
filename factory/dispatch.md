@@ -55,3 +55,10 @@ If an open issue in the repository carries the label `stop`, start nothing and s
 
 If a session for the same role (and lane) from an earlier dispatch is still running, start
 nothing and say so. Two of the same role at once collide.
+
+If there is plainly nothing for the role to do, start nothing and say so. This saves a whole run:
+
+- Reviewer: no open pull request into `development`.
+- Builder: no open issue labelled `ready` in its lane, and no open pull request carrying its lane
+  label.
+- Releaser: `development` has nothing `main` lacks, and no open issue is labelled `merged`.
