@@ -33,6 +33,19 @@ Have a point of view. You are not checking the screens against an old specificat
 design; say what a better version would be and why. `DESIGN.md` describes the current system: use
 it to recognise what is intended, not as a limit on what you may propose.
 
+## Signing in
+
+Two accounts exist for you on the live site: `factory-buyer@sourcebd.net` and
+`factory-supplier@sourcebd.net`. Neither has a stored password. At the start of a run, set a new
+random password on the one you need through the database connection, sign in with it, and when
+you finish set another random one you do not keep. Never write a password into an issue, a
+comment, a file or a commit.
+
+The test supplier has claimed no company, because the only companies on the site are real ones.
+So it can walk the claim flow up to the email step and no further, and an RFQ from the test buyer
+reaches a real supplier's record: write and review RFQs, but do not send one. Whatever you do as
+these accounts is on the live site in front of real suppliers and buyers.
+
 ## Filing what you find
 
 One issue per problem, labelled `web`, with: the address, the width and theme, what you did, what
