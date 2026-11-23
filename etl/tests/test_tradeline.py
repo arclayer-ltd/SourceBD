@@ -1,5 +1,6 @@
 """Tradeline (ops/tradeline.py): what the Volza card says, and the request pace that keeps under Volza's limit."""
 
+import json
 import sys
 from pathlib import Path
 
@@ -126,3 +127,43 @@ def test_pace_never_sends_more_than_40_in_a_minute(monkeypatch):
         v._pace()
         sent.append(clock[0])
     assert max(sum(1 for t in sent if s <= t < s + 60) for s in sent) <= volza_live_sample.PER_MINUTE < 50
+
+
+def test_a_yes_found_by_a_recheck_is_paid_for_once(monkeypatch, tmp_path):
+    # 23 Nov 2026 (#669): launch_recheck_* sorts after every dated file, so the recheck's unsure row hid the
+    # yes fetched after it: the supplier was paid for again on every later fetch and came back to review
+    import volza_review
+
+    unsure = {"id": "x", "slug": "x", "name": "Xeno Knit", "class": "ambiguous", "shipments": 40, "suppliers": 3,
+              "tried": [["Xeno Knit", 200, 40, 3]], "calls": [], "fetched_at": "2026-10-24T09:00:00+00:00"}
+    yes = {**unsure, "class": "exact", "review": "all", "calls": [{"kind": "review:all", "filters": {}}],
+           "fetched_at": "2026-10-25T09:00:00+00:00"}
+    (tmp_path / "launch_recheck_2026-10-24.jsonl").write_text(json.dumps(unsure) + "\n")
+    (tmp_path / "launch_2026-10-25.jsonl").write_text(json.dumps(yes) + "\n")
+    (tmp_path / "review.json").write_text(json.dumps({"x": {"decision": "all", "name": "Xeno Knit"}}))
+    (tmp_path / "candidates.json").write_text("[]")
+    monkeypatch.setattr(volza_review, "RAW", tmp_path)
+    monkeypatch.setattr(volza_review, "REVIEW", tmp_path / "review.json")
+    monkeypatch.setattr(volza_launch, "RAW", tmp_path)
+    monkeypatch.setattr(volza_launch, "CANDIDATES", tmp_path / "candidates.json")
+    monkeypatch.setattr(volza_launch, "checked_in_production", set)
+
+    assert volza_review.newest()["x"]["review"] == "all"
+    assert volza_launch.plan() == []  # nothing to pay for
+    assert volza_review.queue() == []  # nothing to answer again
+    assert [r["id"] for r in volza_launch.shown_rows()] == ["x"]  # and it is the yes that is shown
+
+
+def test_a_rerun_of_fetch_is_a_run_of_its_own(monkeypatch, tmp_path):
+    # #669: the description said a rerun resumes inside the same count and cap; it adds N more under a new cap
+    import tradeline
+
+    day = tmp_path / "launch_2026-11-23.jsonl"
+    day.write_text("".join(json.dumps({"id": i, "cost": 0.5, "calls": [{"kind": "preview"}]}) + "\n" for i in "abc"))
+    seen = []
+    monkeypatch.setattr(tradeline, "today_file", lambda: day)
+    monkeypatch.setattr(tradeline, "run_batch", lambda path, limit, cap, apply, **_: seen.append((limit, cap)))
+    monkeypatch.setattr(sys, "argv", ["tradeline.py", "fetch", "5", "--cap", "10"])
+    tradeline.main()
+    assert seen == [(3 + 5, 1.5 + 10)]  # 5 more suppliers, $10 more, beside the 3 already done for $1.50
+    assert "fetches up to N more new suppliers and may spend up to the cap again" in " ".join(tradeline.__doc__.split())
