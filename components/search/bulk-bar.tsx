@@ -1,8 +1,8 @@
 "use client";
 
 // The bar over the table: the filter bar while nothing is ticked, the ink bulk bar while
-// something is (Paper `10 Â· Results, 3 selected`). "3 suppliers selected Â· Select all 25 on
-// this page", Save, Download CSV, "Send RFQ to 3 suppliers", and the Ã— that clears. Save and
+// something is (Paper `10 · Results, 3 selected`). "3 suppliers selected · Select all 25 on
+// this page", Save, Download CSV, "Send RFQ to 3 suppliers", and the × that clears. Save and
 // Download say how they ended in a live region, even after the selection is cleared. The
 // rules (the 50-supplier cap on one RFQ, what a partial save says, the CSV's refusals) are
 // `lib/dashboard/selection.ts`.
@@ -17,13 +17,13 @@ import { clearTarget, useSelection } from "./selection";
 
 export const TOO_MANY = `One RFQ goes to up to ${SEND_RFQ_MAX} suppliers. Untick some to send.`;
 export const STILL_SAVING = "Still saving. Its result will show here.";
-export const SAVING = "Savingâ€¦";
-export const PREPARING = "Preparing the downloadâ€¦";
+export const SAVING = "Saving…";
+export const PREPARING = "Preparing the download…";
 export const STILL_PREPARING = "Still preparing the download. Its result will show here.";
 /** A result that lands after the selection changed says which selection it was for. */
 export const EARLIER = "For your earlier selection: ";
 
-const sentence = (s: string) => (/[.!?â€¦]$/.test(s) ? s : `${s}.`);
+const sentence = (s: string) => (/[.!?…]$/.test(s) ? s : `${s}.`);
 
 export function ResultsBar({
   toolbar,
