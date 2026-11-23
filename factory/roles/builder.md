@@ -22,7 +22,9 @@ Read `CLAUDE.md` first. If an open issue is labelled `stop`, exit.
 6. Open a pull request into `development`. Say what was wrong, what you changed and how you know
    it works, in plain English. Write `Refs #<issue>`, not `Closes`: an issue closes when it is
    seen working live, which is the releaser's call.
-7. Leave it there. You do not merge and you do not turn on auto-merge. The reviewer does.
+7. Label the pull request with your lane. Then leave it there. You do not merge and you do not
+   turn on auto-merge; the reviewer does. If a check fails after you have gone, the next builder
+   run in this lane picks it up in step 1.
 
 ## Database changes
 

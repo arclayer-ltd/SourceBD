@@ -61,6 +61,7 @@ done is the outcome seen working on the live site.
 
 - `pnpm`, never `npm`. Node 22. Tests are `tsc` plus `node --test` (`pnpm test`); a new test file
   must be added to `tsconfig.npm-test.json` or it never runs.
+- Lint one file with `pnpm exec next lint --file <path>`. Plain `eslint` fails here.
 - Python: install the dependency list from `pyproject.toml` (an editable install fails), set
   `FIRECRAWL_API_KEY` to anything, and `pytest etl/tests`.
 - The checks are in `.github/workflows/ci.yml`: typecheck, lint, tests, the HTTP boundary guard,

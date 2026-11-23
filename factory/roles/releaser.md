@@ -16,8 +16,8 @@ Read `CLAUDE.md` first. If an open issue is labelled `stop`, exit.
    something the file's own description does not, stop, open a `p0` issue with what you saw, and
    release nothing.
 3. **Release.** Open a pull request from `development` into `main` and set it to merge by a merge
-   commit when the checks pass. The deploy starts by itself when `main` is green. Never start the
-   deploy workflow by hand, and never deploy anything that did not come through `main`.
+   commit when the checks pass. The deploy starts by itself when `main` is green and waits for
+   nobody. Never start the deploy workflow by hand, and never deploy anything that did not come through `main`.
 4. **Watch it land.** Read the deploy run. Confirm the commit it reports is the one you released.
 5. **Prove it.** For every issue labelled `merged`, check its "done when" against the live site:
    load the page, call the address, read the row. Seen working: close the issue with one line
