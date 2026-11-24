@@ -40,7 +40,8 @@ export type RfqDoc = {
   created_at: string;
   updated_at: string;
   viewer_role: "buyer" | "supplier" | "both";
-  targets: { id: string; slug: string; company_name: string; entity_type: string; city: string | null; district: string | null }[];
+  /** `is_claimed`: someone has claimed the company on SourceBD, so it can read this RFQ (0162). A buyer sees every target; a supplier only itself. */
+  targets: { id: string; slug: string; company_name: string; entity_type: string; city: string | null; district: string | null; is_claimed: boolean }[];
   quotes: {
     id: string;
     supplier_id: string;
@@ -95,7 +96,8 @@ export type QuoteModel = {
   cautions: string[];
 };
 
-export type NoReplyModel = { id: string; slug: string; supplier: string; place: string; sent: string };
+/** A supplier without a quote. `reached`: it can read the RFQ; one nobody has claimed on SourceBD cannot, and has not seen it. */
+export type NoReplyModel = { id: string; slug: string; supplier: string; place: string; sent: string; reached: boolean };
 
 export type DetailModel = {
   title: string;
@@ -125,6 +127,17 @@ export type DetailModel = {
   /** The viewer is the RFQ's buyer (a supplier sees quotes but never the buyer's actions). */
   isBuyer: boolean;
 };
+
+/**
+ * Whom the RFQ has not reached, said plainly: "reached 2 of 3 suppliers; 1 is not on SourceBD yet".
+ * Null when it reached every one. A supplier reads an RFQ only once its company is claimed here.
+ */
+export function reachWords(targets: number, away: number): string | null {
+  if (away === 0) return null;
+  if (targets === 1) return "not received: the supplier is not on SourceBD yet";
+  if (away === targets) return `not received: none of the ${targets} suppliers is on SourceBD yet`;
+  return `reached ${targets - away} of ${targets} suppliers; ${away} ${away === 1 ? "is" : "are"} not on SourceBD yet`;
+}
 
 /** Everything the quotes panel and the header say, from the document and today's date. */
 export function detailModel(rfq: RfqDoc, today: Date): DetailModel {
@@ -168,15 +181,17 @@ export function detailModel(rfq: RfqDoc, today: Date): DetailModel {
   const replied = new Set(rfq.quotes.map((q) => q.supplier_id));
   const noReply: NoReplyModel[] = rfq.targets
     .filter((t) => !replied.has(t.id))
-    .map((t) => ({ id: t.id, slug: t.slug, supplier: t.company_name, place: placeLine(t.entity_type, t.city, t.district), sent: formatDay(rfq.created_at) ?? "—" }));
+    .map((t) => ({ id: t.id, slug: t.slug, supplier: t.company_name, place: placeLine(t.entity_type, t.city, t.district), sent: formatDay(rfq.created_at) ?? "—", reached: t.is_claimed === true }));
   // Place for a quote row comes from the target list, which carries city and district.
   for (const q of quotes) {
     const t = rfq.targets.find((x) => x.slug === q.slug);
     if (t) q.place = placeLine(t.entity_type, t.city, t.district);
   }
   const live = rfq.quotes.filter((q) => q.status === "submitted" || q.status === "accepted").length;
-  const waitingOn = Math.max(0, rfq.targets.length - rfq.quotes.length);
+  const waitingOn = noReply.filter((n) => n.reached).length;
+  const away = noReply.length - waitingOn;
   const sent = formatDay(rfq.created_at) ?? "—";
+  const reach = reachWords(rfq.targets.length, away);
   const to = rfq.ship_to_country ? `to ${/^(united|netherlands)/i.test(rfq.ship_to_country) ? "the " : ""}${rfq.ship_to_country}` : null;
   const lines = [quantityWords(rfq.quantity, rfq.quantity_unit), targetWords(rfq.target_unit_price, rfq.currency, rfq.quantity_unit), rfq.ship_by ? `ship by ${formatDay(rfq.ship_by)}` : null];
   return {
@@ -184,8 +199,8 @@ export function detailModel(rfq: RfqDoc, today: Date): DetailModel {
     chip: chipFor(rfq.status, live),
     facts: [...lines, to].filter(Boolean).join(" · "),
     factsPane: lines.filter(Boolean).join(" · "),
-    sentLine: `Sent ${sent} to ${suppliersWords(rfq.targets.length)}, each on their own`,
-    sentLinePane: [`Sent ${sent} to ${suppliersWords(rfq.targets.length)}`, to].filter(Boolean).join(" · "),
+    sentLine: reach ? `Sent ${sent} · ${reach}` : `Sent ${sent} to ${suppliersWords(rfq.targets.length)}, each on their own`,
+    sentLinePane: [reach ? `Sent ${sent} · ${reach}` : `Sent ${sent} to ${suppliersWords(rfq.targets.length)}`, to].filter(Boolean).join(" · "),
     phoneFacts: {
       order: `${quantityWords(rfq.quantity, rfq.quantity_unit)} · ${targetWords(rfq.target_unit_price, rfq.currency, rfq.quantity_unit)}`,
       ship: rfq.ship_by ? `Ship by ${formatDay(rfq.ship_by)}${to ? `, ${to}` : ""}` : to ? `Ship ${to}` : null,
@@ -193,7 +208,8 @@ export function detailModel(rfq: RfqDoc, today: Date): DetailModel {
     quotesTitle: `Quotes · ${rfq.quotes.length}`,
     quotesOf: `${rfq.quotes.length} of ${rfq.targets.length}`,
     comparable: rfq.quotes.filter((q) => q.currency === rfq.currency && (q.status === "submitted" || q.status === "accepted")).length,
-    notReplied: waitingOn === 0 ? null : `${waitingOn} ${waitingOn === 1 ? "supplier has" : "suppliers have"} not replied`,
+    notReplied:
+      [waitingOn === 0 ? null : `${waitingOn} ${waitingOn === 1 ? "supplier has" : "suppliers have"} not replied`, away === 0 ? null : `${away} ${away === 1 ? "has" : "have"} not received it`].filter(Boolean).join(" · ") || null,
     sortWords: rfq.target_unit_price === null ? "Cheapest first" : "Best against your target first",
     targetHead: rfq.target_unit_price === null ? null : `vs ${money(rfq.target_unit_price, rfq.currency)} target`,
     quotes,
@@ -204,7 +220,7 @@ export function detailModel(rfq: RfqDoc, today: Date): DetailModel {
   };
 }
 
-export type ChartRow = { id: string; name: string; price: string | null; delta: string | null; over: boolean; at: number | null };
+export type ChartRow = { id: string; name: string; price: string | null; delta: string | null; over: boolean; at: number | null; reached: boolean };
 export type QuoteChart = { target: string; rows: ChartRow[]; legend: string };
 
 /** Where the target sits on a phone's price track (0 is the left end, 1 the right), and how far either side a quote may reach. */
@@ -228,9 +244,9 @@ export function quoteChart(rfq: RfqDoc): QuoteChart | null {
     rows: [
       ...live.map((q) => {
         const d = Math.round((q.unit_price - target) * 100) / 100;
-        return { id: q.id, name: shortName(q.supplier_name), price: money(q.unit_price, q.currency), delta: versusShort(q.unit_price, target, q.currency), over: d > 0, at: CHART_TARGET_AT + ((q.unit_price - target) / spread) * CHART_REACH };
+        return { id: q.id, name: shortName(q.supplier_name), price: money(q.unit_price, q.currency), delta: versusShort(q.unit_price, target, q.currency), over: d > 0, at: CHART_TARGET_AT + ((q.unit_price - target) / spread) * CHART_REACH, reached: true };
       }),
-      ...rfq.targets.filter((t) => !replied.has(t.id)).map((t) => ({ id: t.id, name: shortName(t.company_name), price: null, delta: null, over: false, at: null })),
+      ...rfq.targets.filter((t) => !replied.has(t.id)).map((t) => ({ id: t.id, name: shortName(t.company_name), price: null, delta: null, over: false, at: null, reached: t.is_claimed === true })),
     ],
     legend: `Price per ${perUnit(rfq.quantity_unit)}, ${rfq.currency === "USD" ? "US dollars" : rfq.currency}`,
   };
