@@ -23,7 +23,7 @@ const row = (n: string) => P.blocks.find((b) => b.n === n)!;
 const LIST_NAMES: Record<string, string> = {
   UFLPA: "UFLPA Entity List",
   OFAC: "Specially Designated Nationals (SDN) list",
-  UK_OFSI: "Consolidated list of financial sanctions targets",
+  UK_OFSI: "UK Sanctions List",
   EU_SANC: "EU sanctions map",
   US_WRO: "Withhold Release Orders and Findings",
   ILAB: "List of Goods Produced by Child Labor or Forced Labor",
