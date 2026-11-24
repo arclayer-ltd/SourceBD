@@ -1,0 +1,25 @@
+# Every job the production server runs on a timer, and when. This file is the whole list: each deploy
+# installs exactly these lines (ops/install_schedule.sh), replacing what the last deploy installed.
+# A job that is not here does not run. Times are the server's clock (UTC).
+#
+# $SOURCEBD_APP_DIR is set by the installer to the deployed tree. Each job's own script says what it does
+# and where it reports a failure (Slack, through SLACK_WEBHOOK_ETL or SLACK_WEBHOOK_UPTIME in .env).
+
+# Source queue: drain the Firecrawl inbox, queue what is due, run one queued scrape. Every minute.
+* * * * *   bash "$SOURCEBD_APP_DIR/ops/scraper_queue_cron.sh"       >> "$SOURCEBD_APP_DIR/etl/logs/scraper_queue_cron.log" 2>&1
+
+# Uptime alert: a Slack message when the site goes down and when it comes back. Every five minutes.
+*/5 * * * * bash "$SOURCEBD_APP_DIR/ops/health_slack_cron.sh"        >> "$SOURCEBD_APP_DIR/etl/logs/uptime_slack.log" 2>&1
+
+# Activity record: seal every finished hour, hourly; stamp the newest seal with the outside timestamp
+# authority and email it, daily.
+7 * * * *   bash "$SOURCEBD_APP_DIR/ops/ledger_cron.sh" seal         >> "$SOURCEBD_APP_DIR/etl/logs/ledger_seal.log" 2>&1
+20 1 * * *  bash "$SOURCEBD_APP_DIR/ops/ledger_cron.sh" stamp        >> "$SOURCEBD_APP_DIR/etl/logs/ledger_stamp.log" 2>&1
+
+# Wrong-merge detectors: one supplier carrying two companies' data, one company split across two
+# suppliers. Daily.
+17 3 * * *  bash "$SOURCEBD_APP_DIR/ops/conflation_check_cron.sh"    >> "$SOURCEBD_APP_DIR/etl/logs/conflation_check.log" 2>&1
+23 3 * * *  bash "$SOURCEBD_APP_DIR/ops/split_check_cron.sh"         >> "$SOURCEBD_APP_DIR/etl/logs/split_check.log" 2>&1
+
+# Saved searches: the Monday "new matches" email. 07:00 UTC on Mondays, a UK morning.
+0 7 * * 1   bash "$SOURCEBD_APP_DIR/ops/saved_search_alerts_cron.sh" >> "$SOURCEBD_APP_DIR/etl/logs/saved_search_alerts.log" 2>&1
