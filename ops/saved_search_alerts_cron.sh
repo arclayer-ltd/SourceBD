@@ -4,13 +4,12 @@
 # -e is deliberately absent: a failed run must reach the Slack notify, as in conflation_check_cron.sh.
 set -uo pipefail
 
-# Run from the SourceBD VPS cron, for example (07:00 UTC on Mondays, a UK morning):
-# 0 7 * * 1 /opt/sourcebd/ops/saved_search_alerts_cron.sh >> /opt/sourcebd/etl/logs/saved_search_alerts.log 2>&1
+# Scheduled by ops/schedule.cron (07:00 UTC on Mondays, a UK morning), which each deploy installs.
 #
 # Weekly is the whole product: "One email on Monday, only when something new matches". A search is due once it
 # has not been checked for six days, so a second run the same day does nothing, and one that failed (or was
-# not reached, the job takes up to 200 searches a run) is picked up by the next run. Nothing is installed by
-# this file: the founder adds the cron line and sets JOB_SECRET in .env, the same value the app reads.
+# not reached, the job takes up to 200 searches a run) is picked up by the next run. The founder sets
+# JOB_SECRET in .env, the same value the app reads.
 
 APP_DIR="${SOURCEBD_APP_DIR:-/opt/sourcebd}"
 URL="${SOURCEBD_JOB_URL:-http://127.0.0.1:3000/api/v1/webhooks/saved-search-alerts}"

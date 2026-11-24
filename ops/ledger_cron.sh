@@ -8,11 +8,7 @@
 # -e is deliberately absent: a failed run must reach the Slack notify, as in saved_search_alerts_cron.sh.
 set -uo pipefail
 
-# Run from the SourceBD VPS cron, for example:
-# 7 * * * *  /opt/sourcebd/ops/ledger_cron.sh seal  >> /opt/sourcebd/etl/logs/ledger_seal.log 2>&1
-# 20 1 * * * /opt/sourcebd/ops/ledger_cron.sh stamp >> /opt/sourcebd/etl/logs/ledger_stamp.log 2>&1
-#
-# Nothing is installed by this file: the founder adds the two cron lines and sets JOB_SECRET, LEDGER_TSA_URL
+# Scheduled by ops/schedule.cron, which each deploy installs. The founder sets JOB_SECRET, LEDGER_TSA_URL
 # (optional; the default is freetsa.org) and LEDGER_STAMP_MAILBOX in .env, the same values the app reads. The
 # mailbox must be outside the company's control (a personal account, a lawyer's): that is what makes the
 # daily copy worth anything.
