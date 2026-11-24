@@ -319,6 +319,7 @@ class GotsScraper(AcquiringScraper):
                         upserted += 1
                 except Exception as exc:  # noqa: BLE001
                     skipped += 1
+                    self.failed_saves += 1
                     self.log.error("upsert.failed", source_ref=rec.source_ref, error=str(exc))
                 else:
                     if supplier_id is None:
@@ -333,7 +334,7 @@ class GotsScraper(AcquiringScraper):
             reconcile_certificates(
                 kind="gots", scraper_code=self.code, run_id=run_id,
                 seen_cert_nos=seen_certs,
-                read_complete=not (self.breaker and self.breaker.tripped),
+                read_complete=not (self.breaker and self.breaker.tripped) and not self.failed_saves,
                 accept=self.accept_delistings,
             )
             self._close_run(run_id, "success", seen, upserted, skipped, None)

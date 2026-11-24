@@ -130,6 +130,8 @@ class BkmeaDetailScraper(AcquiringScraper):
     max_credits_per_run = 75
     source_code = "BKMEA"
     transport = "firecrawl"
+    # Re-reads only members whose list row moved: an empty run is normal.
+    whole_read = False
     fallback_transport = "direct"
     # Verify over the direct transport (founder-approved 2 Aug 2026, parity-
     # proven 8/8 on 29 Jul): the browser headers below force storeInCache=false
