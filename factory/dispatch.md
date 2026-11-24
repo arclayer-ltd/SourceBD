@@ -54,7 +54,8 @@ Lane sentence for a builder, placed after the first sentence: `Your lane is <lan
 If an open issue in the repository carries the label `stop`, start nothing and say so.
 
 If a session for the same role (and lane) from an earlier dispatch is still running, start
-nothing and say so. Two of the same role at once collide.
+nothing and say so. Two of the same role at once collide. A session that has waited more than an
+hour for an approval is not running and never will be: archive it, then start the role as usual.
 
 If there is plainly nothing for the role to do, start nothing and say so. This saves a whole run:
 
