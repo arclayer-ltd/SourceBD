@@ -1,7 +1,7 @@
 // The page the claim email links to, with `?token=…`. It spends the token with the visitor's own
 // session (the middleware has already sent anyone signed out to sign in and back here) and says what
 // happened. It used to POST to /api/v1/claims from the server, without the visitor's cookies, so the
-// middleware answered "not authenticated" to every click (#643).
+// middleware answered "not authenticated" to every click (issue 643).
 
 import { ClaimStatusChip, ClaimSteps } from "@/components/claim/parts";
 import { ButtonLink, ErrorPanel } from "@/components/kit";
@@ -17,11 +17,15 @@ type Verified = {
 };
 
 /** What each refusal from claim_verify_email means to the person holding the link. */
-const REFUSED: Record<string, { title: string; detail: string }> = {
-  invalid: {
-    title: "This link does not work",
-    detail: "It may have been copied only in part, or replaced by a newer link. Open the latest claim email, or start the claim again.",
-  },
+type Refusal = { title: string; detail: string };
+
+const INVALID: Refusal = {
+  title: "This link does not work",
+  detail: "It may have been copied only in part, or replaced by a newer link. Open the latest claim email, or start the claim again.",
+};
+
+const REFUSED: Record<string, Refusal> = {
+  invalid: INVALID,
   expired: {
     title: "This link has expired",
     detail: "Claim links work for 24 hours. Start the claim again and a new link is emailed.",
@@ -59,7 +63,7 @@ export default async function ClaimVerifyPage({
 
   const result = (data ?? {}) as Verified;
   if (!result.ok) {
-    const refused = REFUSED[result.outcome ?? ""] ?? REFUSED.invalid;
+    const refused = REFUSED[result.outcome ?? ""] ?? INVALID;
     return <ErrorCard title={refused.title} detail={refused.detail} claimId={result.claim_id} />;
   }
 

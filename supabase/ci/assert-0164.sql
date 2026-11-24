@@ -1,7 +1,9 @@
 -- 0164 asserted by running it: a claim is approved by its email link alone only when the proof email's
--- domain is specific to that company. An email at the company's own domain is approved by the click; a
--- Gmail address that matches the company's listed Gmail, and a domain two companies share, each wait for
--- a person after the click. A signed-out visitor can call neither function.
+-- domain is the company's own website host and no other company uses it. An email at that domain is
+-- approved by the click. Each of these waits for a person after the click: a Gmail address that matches
+-- the company's listed Gmail; an address at a domain only the company's listed email uses (an internet
+-- provider's mail no list names, which a stranger can open a mailbox at); and a domain two companies
+-- share. A signed-out visitor can call neither function.
 \set ON_ERROR_STOP on
 
 begin;
@@ -14,6 +16,7 @@ insert into public.suppliers (slug, company_name, company_name_norm, city, distr
 values
   ('ci-0164-own',    'CI 0164 Own Knit Ltd',  'ci 0164 own knit ltd',  'Dhaka', 'Dhaka', 'https://www.ci0164own.example/about', 'info@ci0164own.example', false, false),
   ('ci-0164-gmail',  'CI 0164 Gmail Ltd',     'ci 0164 gmail ltd',     'Dhaka', 'Dhaka', null,                                  'ci0164.knit@gmail.com',   false, false),
+  ('ci-0164-isp',    'CI 0164 Isp Mail Ltd',  'ci 0164 isp mail ltd',  'Dhaka', 'Dhaka', null,                                  'knit@ci0164isp.example',  false, false),
   ('ci-0164-group1', 'CI 0164 Group Unit 1',  'ci 0164 group unit 1',  'Dhaka', 'Dhaka', 'http://ci0164group.example',          null,                      false, false),
   ('ci-0164-group2', 'CI 0164 Group Unit 2',  'ci 0164 group unit 2',  'Dhaka', 'Dhaka', null,                                  'sales@ci0164group.example', false, false);
 
@@ -31,11 +34,14 @@ declare
   own  uuid := (select id from public.suppliers where slug = 'ci-0164-own');
   gml  uuid := (select id from public.suppliers where slug = 'ci-0164-gmail');
   grp  uuid := (select id from public.suppliers where slug = 'ci-0164-group1');
+  isp  uuid := (select id from public.suppliers where slug = 'ci-0164-isp');
   r_own jsonb;
   r_gml jsonb;
   r_grp jsonb;
+  r_isp jsonb;
   v_own jsonb;
   v_gml jsonb;
+  v_isp jsonb;
 begin
   if has_function_privilege('anon', 'public.claim_initiate(uuid, text, text)', 'execute')
      or has_function_privilege('anon', 'public.claim_verify_email(text)', 'execute') then
@@ -54,6 +60,7 @@ begin
   r_own := public.claim_initiate(own, 'Mona@CI0164own.example', null);
   r_gml := public.claim_initiate(gml, 'anyone.at.all@gmail.com', null);
   r_grp := public.claim_initiate(grp, 'x@ci0164group.example', null);
+  r_isp := public.claim_initiate(isp, 'stranger@ci0164isp.example', null);
 
   if r_own ->> 'method' <> 'domain_email' then
     raise exception '0164: an email at the company''s own domain is %, expected domain_email', r_own ->> 'method';
@@ -61,12 +68,16 @@ begin
   if r_gml ->> 'method' <> 'manual_review' then
     raise exception '0164: a Gmail address that matches a listed Gmail is %, expected manual_review', r_gml ->> 'method';
   end if;
+  if r_isp ->> 'method' <> 'manual_review' then
+    raise exception '0164: an address at a domain only the listed email uses is %, expected manual_review', r_isp ->> 'method';
+  end if;
   if r_grp ->> 'method' <> 'manual_review' then
     raise exception '0164: a domain two companies share is %, expected manual_review', r_grp ->> 'method';
   end if;
 
   v_own := public.claim_verify_email(r_own ->> 'verification_token');
   v_gml := public.claim_verify_email(r_gml ->> 'verification_token');
+  v_isp := public.claim_verify_email(r_isp ->> 'verification_token');
 
   reset role;
 
@@ -75,6 +86,12 @@ begin
   end if;
   if v_gml ->> 'outcome' <> 'pending_admin' then
     raise exception '0164: the Gmail click gave %, expected pending_admin', v_gml;
+  end if;
+  if v_isp ->> 'outcome' <> 'pending_admin' then
+    raise exception '0164: the listed-email-domain click gave %, expected pending_admin', v_isp;
+  end if;
+  if (select claimed_by from public.suppliers where id = isp) is not null then
+    raise exception '0164: a click at the listed email''s domain made somebody the owner with no person deciding';
   end if;
   if (select claimed_by from public.suppliers where id = own) is distinct from me then
     raise exception '0164: the own-domain click did not make the claimant the owner';

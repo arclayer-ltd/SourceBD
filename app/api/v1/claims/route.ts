@@ -9,7 +9,7 @@
 // POST { action:'admin_resend', id }                   (0129: a fresh link, emailed again)
 //
 // The middleware answers 401 to a request on /api/v1/* that carries no session, so a server-side
-// fetch to this route without the visitor's cookies is refused before it gets here (#643: the email
+// fetch to this route without the visitor's cookies is refused before it gets here (issue 643: the email
 // link's page spends its token itself, with the visitor's session). Each action also checks the
 // session and goes through a SECURITY DEFINER function (0032, 0129, 0164) that re-checks role and
 // ownership in the database.

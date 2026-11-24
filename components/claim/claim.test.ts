@@ -2,7 +2,7 @@
 // claim's status page (each status, a claim that is not yours is a 404), and the page the email link opens
 // (no token, each refusal, approved, waiting for a person). Drawn over a fake Supabase client installed
 // before the pages load, and a `fetch` that records any call: the link's page must not call our own API,
-// which refused it for want of the visitor's session (#643).
+// which refused it for want of the visitor's session (issue 643).
 
 import assert from "node:assert/strict";
 import fs from "node:fs";

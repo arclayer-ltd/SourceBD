@@ -12,8 +12,12 @@
 -- WHAT THIS DOES
 --   1. _claim_domain_is_specific(supplier, domain): true only when the domain is not a public mailbox
 --      provider and no OTHER supplier uses it, as its website host or its listed email's domain.
---   2. claim_initiate: `domain_email` needs the proof email's domain to match the company AND be
---      specific to it. Everything else is `manual_review`: the click confirms the email, a person decides.
+--   2. claim_initiate: `domain_email` needs the proof email's domain to be the company's website host
+--      AND specific to it. A match on the listed email's domain alone no longer counts: a listed address
+--      at a mailbox or internet provider (btinternet.com, dhakalink.net, a mistyped gamail.com) is
+--      often used by only one supplier, so "used by nobody else" says nothing about who owns it, and no
+--      list of providers can be complete. Everything else is `manual_review`: the click confirms the
+--      email, a person decides.
 --      The body is otherwise the one the live database holds (checked 24 Nov 2026; it equals 0032's).
 --   3. Signed-out visitors may no longer call claim_initiate or claim_verify_email. The email link's page
 --      now spends the token with the visitor's own session, and the middleware signs them in first.
@@ -69,7 +73,6 @@ declare
   v_email_domain  text;
   v_supplier      record;
   v_supplier_host text;
-  v_listed_domain text;
   v_method        public.claim_method;
   v_token_raw     text;
   v_token_hash    text;
@@ -128,11 +131,11 @@ begin
   end if;
 
   -- domain_email (approved by the click alone) only when the proof email's domain is the company's
-  -- website host or its listed email's domain, AND that domain proves this one company (0164).
+  -- website host AND that domain proves this one company (0164). The listed email's domain is not
+  -- enough on its own: it may be a provider's, and a stranger can open a mailbox there.
   v_supplier_host := public._claim_host_root(public._claim_host_from_url(v_supplier.website));
-  v_listed_domain := nullif(public._claim_email_domain(v_supplier.email_primary), '');
 
-  if v_email_domain in (v_supplier_host, v_listed_domain)
+  if v_email_domain = v_supplier_host
      and public._claim_domain_is_specific(v_supplier.id, v_email_domain) then
     v_method := 'domain_email';
   else
