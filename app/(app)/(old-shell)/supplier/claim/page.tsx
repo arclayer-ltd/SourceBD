@@ -87,7 +87,7 @@ export default async function SupplierClaimPage({
       <header className="flex flex-col gap-1">
         <h1 className="text-2xl font-semibold tracking-tight text-ink">Claim your company</h1>
         <p className="text-md text-ink-2">
-          Search the SourceBD directory, then confirm an email at your company. If the email is at the company's own web domain, and no other company on SourceBD uses that domain, the claim is approved when you click the link. Otherwise someone at SourceBD checks it first.
+          Search the SourceBD directory, then confirm an email at your company. If the email is at the company&apos;s own web domain, and no other company on SourceBD uses that domain, the claim is approved when you click the link. Otherwise someone at SourceBD checks it first.
         </p>
       </header>
 
