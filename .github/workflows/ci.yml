@@ -172,10 +172,6 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Profile HTTP-boundary guard
-        # The site's build ran out of memory at Node's default 2 GB heap on 23 Nov 2026; the
-        # runner has far more.
-        env:
-          NODE_OPTIONS: --max-old-space-size=6144
         run: node scripts/test-profile-http-boundary.mjs --build
 
   migrations:

@@ -1,0 +1,147 @@
+# SourceBD - Current State
+
+Compacted 18 Sep 2026. Hard cap: 16 KB (`lib/context-size.test.ts` fails
+`npm test` when this file or `feature-specs/active.md` grows past its cap).
+Read this file ONCE per session. Everything dated before 18 Sep 2026 lives
+verbatim in `context/archive/state-2026-jun-aug.md` — grep it for a heading,
+read that section only, never the whole file.
+
+## Phase
+Phase 7 - Public Beta launch prep.
+
+## Current goal
+Launch-readiness closeout: deploy to VPS `109.104.153.228`, apply required
+migrations, run the 30-day zero P1/P2 Sentry incident window.
+
+## In progress
+- **Six-screen critique, round three (8 Oct)** — the seven PRs of `.impeccable/handoff-critique-round-3.md` landed on `development` (#403–#406, #408 carrying item 5, #410): Send RFQ keeps the search, the pane list is a ledger, a confirmation above five recipients, the landing leads with common searches, the help layer everywhere, Sam's list, the minors. Re-critique 33/40, up from 31 (`.impeccable/critique/` latest `app-app-app`): P2 Saved beside a record has no pager; P2 the 50-supplier place line repeats a district; P2 filters beside a record are a bare "+ 2". Earlier rounds: `archive/state-2026-oct.md`.
+- **Design-system rebuild** — spec `feature-specs/ds-rebuild-must-stay.md`.
+  `design-rebuild` landed on `development` 18 Sep (`09ec96b`): tokens +
+  `/dev/ds` gallery. Old pages are unstyled until rebuilt.
+- REZ-A and REZ-B (dashboard kit, results page): DONE; detail in `archive/state-2026-sep.md`.
+- **Buyer dashboard v3.2, REZ-C (the company profile)** — IN PROGRESS on
+  branch `rez-c-supplier-record`. `/app/suppliers/[slug]` is now the dashboard
+  kit's `SupplierSheet`; the same component opens over the results as
+  `?record=<slug>` (a `next/link` client navigation, so the search and the bulk
+  selection survive); `/app/suppliers/[slug]/lines/[hs]` is the line sheet, and
+  a line opened from the overlay stays on the search as `&line=NNNN`. The sheet
+  gained Sources, Locations, Facilities, RFQs and a Sanctions-matches section,
+  so every tab leads somewhere.
+  Migration `0105` adds ONE function, `supplier_contact_counts` — NOT APPLIED.
+  Evidence and the founder's command: `ops/plans/rez-c-0105-dry-run.md`.
+  **The closed loop is OPEN** — thirteen audit cycles run, each repaired.
+  Cycle 7: the women/men split invented a sex from a family total (jk-fabrics)
+  — now shown only against the record's own filed total. Cycle 8 (requirements
+  critic accepted): cycle 7's place-word exemption let names through ("Abdul
+  Bari (MD)") — a name beside a role is now cut back to the last house or plot
+  number, so "Nur Mansion (MD)" loses its place (privacy over completeness);
+  the population guard has a fixture test. Cycle 9 (adversarial critic
+  accepted): a number after a name kept it ("Abdul Karim 2nd Floor (Owner)") —
+  only the numbers opening the stretch stay now; Locations lists the filed
+  address instead of saying "no address" under it (77 live records); the guard
+  reviews every text the stripper cut a role word from. Cycle 10
+  (requirements critic accepted): "(Md. Ali Tower)" read as a role cut places
+  — a full stop ends a role's part only at its end; honorific cuts go to
+  review; every guard check now has a fixture (it can run a stand-in
+  stripper). Cycle 11 (requirements critic accepted): cycle 10's full-stop
+  rule let "Abdul Karim (MD). Plot 5" through — a closed bracket or a
+  non-honorific role ends the part again, only "- MD." is left to review; a
+  failed search re-run under an open record no longer drops the buyer's bulk
+  selection. Cycle 12 (requirements critic accepted): cycle 11 had copied a
+  surviving mutant into the stripper as "redundant", reopening "- MD & CEO.,
+  Dhaka" — restored and pinned (rule: a surviving mutant gets a test, never
+  the source); the guard's cut splits dot-joined words; "160-GM." is grams;
+  the provider key is tested across open/close. Cycle 13 (requirements critic
+  accepted): 0105 counted one number with and without +880 as two phones (4
+  live records) — fixed, dry run owed; the guard judges each run of cut words
+  on its own; "GM"-as-grams only in products. Loop stopped here by the founder;
+  Acceptance Judge next. Founder, 25 Sep: Facilities lists the buildings; product
+  entries differing only in case or spacing merge. **27 Sep, founder: ship cycle 13's candidate and file the rest later** — START HERE: `feature-specs/handoff-rez-c-deploy.md`.
+  **Ratified by the founder 25 Sep:** "Exporters of 6105 · N" (the count
+  equals the search it opens); 0105's five omitted §4.3 items; and these
+  deferrals: the Barikoi map on Locations
+  (§3.3's "map stays") and §3.3's "Map pin" fact row, both of which need the
+  old design system's `LocationsSection` that the rebuild spec puts off-limits;
+  `/app/compare`, which §7 assigns to REZ-C and which stays deferred with
+  `/app/saved`; the admin-only contact unlock the replaced page had; and
+  §3.5's 10-minute `discover-facets` cache on `hs_catalogue()`, which
+  `/app/products` (shipped by REZ-B) still does not have — every view pays a
+  316 ms function scan. Scope: `feature-specs/handoff-rez-c-start.md`.
+
+- **Buyer dashboard redesign (founder review, 27 Sep)** — LIVE: `main` `383a31c`, deployed 27 Sep (PRs #176–#180, front end only, no migration). Open: #181 (Products/Saved-searches headers, CI flake in next/font), "Quoted" shown for withdrawn-only quotes (needs quote status in `rfq_list`), RJSC logo (none published).
+- **Buyer app craft pass (27 Sep, against the sourceready walkthrough)** — PR #185 (the record tray slides in, the topbar search suggests as you type, illustrated empty states, press feedback, palette on browser surfaces; six Higgsfield vector illustrations with provenance in `public/illustrations/`; `DESIGN.md` written from the kit). Auto-merge to `development`. Not built, named in `.impeccable/surfaces/app-app-app.md`: the sticky record name in the tray bar on scroll; the sidebar's icon-only collapse at 1024–1279.
+- **One-viewport buyer shell (27 Sep)** — LIVE: `main` `3f628b9`, deployed 27 Sep (PR #188 to `development`, promotion PR #189, Deploy Production run 36319747764, rollback ref `e3c86f3`). the buyer layout draws `AppShell` once; every /app page hands it only its content region (`Page`, or the search's workbench); the record is a `RecordPane` beside the results (no dialog, no scrim, nothing inert), and `mode="page"` on the full record and line pages. Hand-off: `feature-specs/handoff-one-viewport-shell.md`. Not started: supplier portal + admin (old shell), `/app/help`, the plans modal, the rail's icon-only collapse.
+- **Buyer app enterprise pass (27 Sep, branch `enterprise-buyer-app`)** — IN PROGRESS. Critique 19/40 (`.impeccable/critique/2026-09-27T14-19-11Z__app-app-app.md`); founder picked G1 ledger grid · B1 quiet buttons · S1 split pane. Every secondary interface opens in the pane beside its list (composer `?rfq=`, filters, save search, orders, RFQs, saved, a record inside a thread); the buyer's own product base at `/app/products` (HS catalogue moved to `/app/headings`); workspace, members and inquiry settings. Migration `0106` (products, RFQ message/questions/drafts, workspace settings) NOT applied — `ops/plans/0106-dry-run.md`. PR #191 open with auto-merge (28 Sep); apply 0106 before the deploy. Hand-off: `context/feature-specs/handoff-enterprise-buyer-app.md`.
+- **Search-first buyer app (28 Sep)** — LIVE 28 Sep (`d7e6c42`, PRs #193/#194); detail in `archive/state-2026-sep.md`.
+- **Dashboard fixes from the founder's 29 Sep video** — COMPLETE, live `79a59f8` (PRs #197–#202, #207); migration `0107` applied 29 Sep; detail in `archive/state-2026-sep.md`.
+
+- **Buyer app on a phone** — 30 Sep build: `archive/state-2026-sep.md`. Redesign from Paper pages 35–36 (11 Oct): `phone-redesign-1` + PR #474; `archive/state-2026-oct.md`. Live-review fixes, 12 Oct: same file.
+
+- **Home page film (6 Oct)** — v2 BUILT 9 Oct (`feature-specs/spec-home-film.md` §"v2"); behind `?film=1` since 10 Oct.
+- **Home page, Mercury direction (10 Oct)** — `/` is the Paper page 32; BUILT on `development` (PRs #421–#424), live once Deploy Production is approved; `.impeccable/handoff-home-mercury-build.md`.
+- **Desktop supplier record and search results, Paper page 37 (13 Oct)** — IN PROGRESS, `feature-specs/spec-desktop-record-page-37.md`. Slice a (the record) merged, PR #488; b (results table and list rows) PR #489; c (rank and the results' export cells) PR #490; released to main in PR #491; 0147 applied 13 Oct. Open: the founder's deploy click, then the live check.
+- **Phone record and search, Paper pages 35 and 36 (13 Oct)** — BUILT, `.impeccable/handoff-phone-boards-to-prod.md`: only the approved changed sections, over the live phone code. Slices a–c merged (PRs #494, #495, #498); d (sources, products, contact) and e (search rows) in their PRs. No migration. Open: the release to main, the founder's deploy click, the live check.
+- **Dark theme (23 Oct)** — one dark set, `dark` in the token file (v4 colours, ground v4 `ink`): the app's Light/Dark in Settings · Profile (PR #589, merged) and the site's night ground (`home-dark-ds`).
+
+## Founder rules still in force (one line each; detail in archive)
+- EPB is a government register: show its evidence and HS codes whenever EPB has them, flagged or not. Never mint EPB-only suppliers. (15 Aug)
+- Registry columns are canonical-latest-wins: the provider's current page is the truth and shows without a review round-trip. (3 Aug)
+- BGMEA reg numbers display backed-only (option a). (5 Aug)
+- `employees_total` = production workers = Male + Female; never sum BGMEA's three keys. (5 Aug, REZ-95)
+- Numeric profile fields cannot be corrected downwards today (`greatest()` merge) — known defect, queued. (31 Jul)
+- LLM adjudicator approved for the resolution review band only; Firecrawl `/v2/extract` not approved; resolution runs as a batch stage. (4 Aug)
+- Dry-runs and snapshots never need approval; `--apply` always does. (AGENTS rule 15)
+- Signed-out visitors see every supplier field except the company's contact details; contact info is sign-in gated. (23 Sep, REZ-B)
+- Products counts leave out sanctioned suppliers, so each equals the Discover search it links to. (24 Sep, REZ-B)
+- Discover's worker figure is the one the Workers sort uses (the supplier's own); the profile's figure, when different, is a second line whose words come only from the sites it sums. (24 Sep, REZ-B)
+- No Help button until a help page exists. (24 Sep, REZ-B)
+
+## Production migration ledger (authoritative)
+Migration file headers are NOT live status. Check here or query the database.
+
+| Migration | Applied to production | Notes |
+| -- | -- | -- |
+| `0091`–`0094` | 4–5 Aug 2026 | facility_of, publish guard, resolution_edges, field locks — all additive |
+| `20260805_rez98_registry_ids_bgmea_backed_only` | 5 Aug 2026 | backed-only BGMEA display |
+| `0095_buyer_supplier_profile_facility_documents` | not applied | REZ-93 |
+| `0096_facility_parent_slug` | 10 Aug 2026 | REZ-72 |
+| `0149_supplier_slug_redirects` | 13 Oct 2026 | Merged duplicates' old addresses redirect. `ops/plans/0149-dry-run.md`. |
+| `0097`–`0101` | see archive per issue | REZ-73 / REZ-114 / REZ-115 |
+| `0102_admin_queue_release` | 14 Aug 2026 | 1,282 tickets released; 48 `needs_human` open |
+| `0103_epb_detail_url_and_hscodes` | 15 Aug 2026 | EPB Open = exporter page |
+| `0104_discover_v32` | 25 Sep 2026 | REZ-B. Applied after its code was already live (`main` `1780c2c`, deployed 24 Sep) — signed-in search was down in between. Dry-run clean first (one transaction, rolled back). Verified after: 9 `discover_v32%` functions, `saved_searches` with 4 RLS policies, `discover_suppliers` at 25 args. sha256 (CRLF) `4f95641b7c8a1956d61d9b866373c963ec7150690afa2a46ff8b96cbbc3e8b47`. |
+| `0105_supplier_record_v32` | **not applied** | REZ-C. One function, `supplier_contact_counts(text)` — counts of a published record's contact details, never a value; `anon` explicitly revoked. Deliberately does NOT rewrite `buyer_supplier_profile`: production's copy is ahead of this repo (it emits `'fetched_at', rr.fetched_at` on rsc rows, which no migration here adds), so a `create or replace` from the repo would delete that key. sha256 (CRLF) `b6fd758a08f63f8b7abc9a65479c819cf47d30e1a4bb151988de44e43207b465` (26 Sep: one number with and without +880 counts once). **Dry run NOT re-run at this sha** (pooler down) — re-run before applying; the last clean run was at `4b2dfb8c…` on 25 Sep. Population guard for the contact stripper: `ops/verify_contact_text.py`. Evidence: `ops/plans/rez-c-0105-dry-run.md`. |
+| `0107_buyer_supplier_profile_one_supplier` | 29 Sep 2026 | 29 Sep video. Two FROM clauses: the profile's two views filtered on the one id instead of joined. Applied through the Supabase MCP on the founder's go-ahead (the pooler times out here), gated on the text's md5 and the live base (`63ee7ea0…`); dry run 45 records identical, 967 → 171 ms median; live md5 now `8648d817…`, recorded `20260929083008`. Evidence, rollback: `ops/plans/0107-profile-one-supplier.md`. |
+| `0108_compliance_expired_certs` | 5 Oct 2026 | Applied as `20261005091012` (found 6 Oct; this row said not applied). 0116 re-scoped it to `workspace_owner()`; 0122 replaces its body. |
+| `0110_order_cancel_before_shipping` | **not applied** | OR-02: shipped/in-transit orders refuse a cancel. Dry run clean 4 Oct (0 live orders): `ops/plans/0110-dry-run.md`. |
+| `0120`–`0125` | 6 Oct 2026 | ETL freshness, six migrations via MCP; rows in `archive/state-2026-oct.md`, dry runs `ops/plans/0120`…`0125-dry-run.md`. |
+| `0147_export_rank_and_cells` | **applied 13 Oct** | Desktop record slice c: two readers. `ops/plans/0147-dry-run.md`. |
+| `0150_supplier_slug_rename_redirect` | **not applied** | A renamed profile keeps its old address: one trigger writes the old slug into 0149's table. Writes no row when applied. `ops/plans/0150-dry-run.md`. |
+| `0137_volza_export_checks` | 11 Oct 2026 | Via MCP on "apply 0137"; Volza customs shipments on the record, admins and Growth/Enterprise only, rows kept one year. `ops/plans/volza-export-dry-run.md` §8. |
+| `0142_discover_customs_exports` | 11 Oct 2026 | Via MCP on "apply 0142"; search by customs exports, entitled readers only. `ops/plans/0142-dry-run.md`. |
+| `0146_volza_reveal_price_city` | **not applied** | Shipment reveal: checked price a piece, buyer city. `ops/plans/0146-dry-run.md`. |
+
+Deploy-order hazard, twice hit: code that queries a new table with no
+missing-table guard crashes every ETL run if shipped before its migration.
+Apply the migration before or with the deploy.
+
+## Queued (specified, not started)
+- Entity resolution core — `feature-specs/spec-resolution-core.md`. Needs the Guardrails epic (REZ-57) merged first.
+- Numeric downward-correction rule + one-off recompute.
+- `spec-brand-primark-global-sourcing-map.md`.
+
+## Shipped baseline
+Phase 0 data moat; Phases 1–6 in codebase; FE-SITEWIDE conformance pass is the
+current visual baseline; P1 deploy artefacts and Phase 7 beta surfaces landed.
+Guardrails epic REZ-57 (A1–A8b) and Extensions B0/B0b/B2 complete — see archive.
+
+## Working tree
+Large uncommitted frontend diff (HS card + design conformance work) is
+pre-existing founder work. Do not revert it during unrelated tasks. Rule 11
+(clean tree at spec start) still applies to new specs.
+
+## Where history lives
+- `context/archive/state-2026-oct.md` — the first two 8 Oct critique rounds, and the pre-September entries moved out of In progress.
+- `context/archive/state-2026-jun-aug.md` — every closeout Jun–Aug 2026 (51 sections).
+- `context/archive/specs-shipped-2026.md` — every shipped spec entry.
+- `context/archive/progress-tracker-archive-2026-06-25.md` — older.

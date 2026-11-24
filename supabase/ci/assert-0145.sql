@@ -22,9 +22,6 @@ insert into auth.users (id, email, raw_user_meta_data) values
   ('00000000-0000-4000-8000-000000001145', 'noter-0145@example.invalid',   '{"role":"buyer"}'::jsonb)
 on conflict do nothing;
 
--- Sign-up never makes an admin (0159); the role is set on the profile afterwards.
-update public.profiles set role = 'admin' where id = '00000000-0000-4000-8000-00000000a145';
-
 update public.profiles set plan_tier = 'growth' where id in
   ('00000000-0000-4000-8000-00000000b145', '00000000-0000-4000-8000-00000000e145', '00000000-0000-4000-8000-00000000f145',
    '00000000-0000-4000-8000-000000001145');

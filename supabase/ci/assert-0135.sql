@@ -12,9 +12,6 @@ insert into auth.users (id, email, raw_user_meta_data) values
   ('00000000-0000-4000-8000-00000000b135', 'buyer-0135@example.invalid', '{"role":"buyer"}'::jsonb)
 on conflict do nothing;
 
--- Sign-up never makes an admin (0159); the role is set on the profile afterwards.
-update public.profiles set role = 'admin' where id = '00000000-0000-4000-8000-00000000a135';
-
 -- The replay itself wrote entries, stamped with the wall clock of whenever it ran: when it ran in the hour
 -- before this file, they counted in the one-hour-ago window (CI run 40104918829). Clear them so the windows
 -- hold only the entries below; the guard is off for this one delete (only the owner can), and it all rolls back.

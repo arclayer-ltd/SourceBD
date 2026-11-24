@@ -15,7 +15,7 @@ This deploy stands up the Next.js web container only; the existing
 ```bash
 ssh root@109.104.153.228
 apt-get update && apt-get install -y docker.io docker-compose-plugin caddy git curl
-git clone -b main https://github.com/arclayer-ltd/SourceBD.git /opt/sourcebd
+git clone -b main https://github.com/Rezx100/SourceBD.git /opt/sourcebd
 cd /opt/sourcebd
 cp .env.example .env
 # edit .env — see "Env contract" below
@@ -35,6 +35,8 @@ cd /opt/sourcebd
 bash ops/deploy_vps.sh --ref=main --require-git
 curl -sf http://127.0.0.1:3000/api/health
 ```
+
+Legacy laptop scripts (`deploy-quick.ps1`, `deploy-vps.ps1`) are **blocked for production** unless explicit legacy flags are passed — see enterprise runbook.
 
 ## Env contract
 
