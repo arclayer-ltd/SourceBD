@@ -29,6 +29,23 @@ Read `CLAUDE.md` first. If an open issue is labelled `stop`, exit.
    previous release back using the rollback steps in `docs/ENTERPRISE_DEPLOYMENT.md`. Restoring
    service comes before understanding why.
 
+## The question nobody answers
+
+The database connection asks a person to confirm before it runs SQL that contains `DROP`,
+`DELETE`, `TRUNCATE` or an `UPDATE` with no `WHERE`. It asks even inside a transaction that is
+rolled back, and `drop policy if exists` counts. Nobody is there to answer, a question once asked
+cannot be withdrawn, and the run ends at that call with nothing released. That confirmation is
+the connection's own safeguard, and whether it stays is the founder's decision (#679). Do not
+reword or wrap a statement to get past it.
+
+So read every file before you send any of it, and treat one of those words anywhere outside a
+comment as enough to be asked. Such a file is held: it is not sent at all, not even as a dry run.
+Say on #679 which files you held. Carry on in number order with the files that do not need a held
+one. Then release if the code being released works without the held files; if it does not, say so
+on the issue that needs the file and release nothing.
+
+This section goes when #679 is settled.
+
 ## Changes to live data
 
 A repair that rewrites supplier data is not a migration and does not ride along with a release.
