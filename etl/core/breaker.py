@@ -28,6 +28,31 @@ MAX_CREATED = 20
 COMPLETE_SHARE = 0.9
 
 
+def read_shortfall(
+    *, seen: int, failed_saves: int, last_complete: int | None,
+    whole_read: bool, accept: bool = False,
+) -> str | None:
+    """Why a run that finished without an error is still not a complete read,
+    or None when it is one. A run that is not complete must fail: closing it as
+    a success would move the source's "last read" date over data nobody read.
+
+    A failed save always counts; `accept` (the founder's --accept-changes, after
+    looking) releases only a read that is smaller than last time. A source that
+    reads a gated subset (`whole_read` False) has no size to compare.
+    """
+    if failed_saves:
+        return f"{failed_saves} of {seen} records failed to save"
+    if not whole_read:
+        return None
+    if seen == 0:
+        return "read no records; the page or the login has probably changed"
+    if not accept and last_complete and seen < COMPLETE_SHARE * last_complete:
+        return (f"read {seen} records against {last_complete} in the last complete read "
+                f"(under {COMPLETE_SHARE:.0%}); if the source really shrank, release it "
+                f"with --accept-changes")
+    return None
+
+
 def over_removal_limit(*, removed: int, listed_before: int) -> bool:
     # ponytail: the floor of 3 keeps a 75-row list (US WRO) from holding on a
     # single genuine removal; revisit if a list grows past ~10k.

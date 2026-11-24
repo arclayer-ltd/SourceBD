@@ -29,7 +29,7 @@ from rapidfuzz import fuzz
 from etl.core.db import db, get_source_id
 from etl.core.logging import get_logger
 from etl.core.normalize import normalize_company_name
-from etl.core.scraper import EvidenceAttachment
+from etl.core.scraper import EvidenceAttachment, refuse_incomplete_read
 from etl.core.upsert import _names_compatible
 
 log = get_logger("etl.sanctions")
@@ -365,12 +365,19 @@ class BaseSanctionScraper(abc.ABC):
     read_complete: bool = True
     # Founder knob (`run <code> --accept-delistings`): release a held reconcile.
     accept_delistings: bool = False
+    # Every list is read whole, so an empty or much smaller read means it broke.
+    whole_read: bool = True
+    # Founder knob (`run <code> --accept-changes`): accept a read smaller than
+    # the last complete one (#654).
+    accept_changes: bool = False
 
     def __init__(self) -> None:
         self.log = get_logger(f"etl.sanctions.{self.code}")
         self.last_run_id: str | None = None
         self.evidence_claims = 0
         self.credits_used = 0
+        # Entries whose ingest raised this run. Any one makes the read incomplete.
+        self.failed_saves = 0
         self._evidence_doc_ids: set[str] = set()
 
     @property
@@ -414,6 +421,7 @@ class BaseSanctionScraper(abc.ABC):
                     matched_total += res["screened"]
                 except Exception as e:  # noqa: BLE001
                     skipped += 1
+                    self.failed_saves += 1
                     self.log.error(
                         "ingest.failed", entry_ref=entry.entry_ref, error=str(e)
                     )
@@ -609,6 +617,7 @@ class BaseSanctionScraper(abc.ABC):
             run_id = str(cur.fetchone()["id"])
             self.last_run_id = run_id
             c.commit()
+            self.failed_saves = 0
             self.log.info("run.start", run_id=run_id)
             return run_id
 
@@ -623,6 +632,11 @@ class BaseSanctionScraper(abc.ABC):
         error: str | None,
         extra: dict[str, Any] | None = None,
     ) -> None:
+        if status == "success":
+            refuse_incomplete_read(
+                code=self.code, run_id=run_id, seen=seen, failed_saves=self.failed_saves,
+                whole_read=self.whole_read, accept=self.accept_changes or self.accept_delistings,
+            )
         meta = json.dumps({"matched_suppliers": matched, **(extra or {})})
         with db.conn() as c, c.cursor() as cur:
             cur.execute(

@@ -131,7 +131,8 @@ def run(
         False,
         "--accept-changes",
         help="Release a run the circuit breaker stopped (more than 5% of rows changed or "
-        "more than 20 new companies). Founder knob, after reading the held run.",
+        "more than 20 new companies), or one that failed for reading under 90% of the "
+        "last complete read. Founder knob, after reading the run.",
     ),
     max_credits: int = typer.Option(
         None,
