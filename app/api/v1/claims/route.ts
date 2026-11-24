@@ -4,14 +4,15 @@
 // GET  /api/v1/claims?view=admin&status=…       → claim_admin_list (admin)
 // GET  /api/v1/claims?view=search&q=…           → claim_search (supplier/admin)
 // POST { action:'initiate', supplier_id, proof_email, note? }
-// POST { action:'verify',   token }              (anon-callable; token is creds)
 // POST { action:'cancel',   id }
 // POST { action:'admin_decide', id, approve, note? }   (0129: any open stage; a reason to reject)
 // POST { action:'admin_resend', id }                   (0129: a fresh link, emailed again)
 //
-// Middleware does NOT cover `/api/*` — auth is enforced in-handler via the
-// Supabase user-scoped client. Writes go through SECURITY DEFINER RPCs in
-// migrations 0032 and 0129 which re-check role + ownership at the database.
+// The middleware answers 401 to a request on /api/v1/* that carries no session, so a server-side
+// fetch to this route without the visitor's cookies is refused before it gets here (#643: the email
+// link's page spends its token itself, with the visitor's session). Each action also checks the
+// session and goes through a SECURITY DEFINER function (0032, 0129, 0164) that re-checks role and
+// ownership in the database.
 //
 // The verification email goes through the journaled sender (lib/email/send.ts,
 // template claim_verify, refId = the claim id), so the admin claim queue can
@@ -199,15 +200,11 @@ export async function POST(req: Request) {
   }
   const action = typeof body.action === "string" ? body.action : "";
 
-  // `verify` is callable without an authenticated session — the token is
-  // the credential. All other actions require auth.
-  if (action !== "verify") {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) {
-      return NextResponse.json({ error: "unauthorised" }, { status: 401 });
-    }
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return NextResponse.json({ error: "unauthorised" }, { status: 401 });
   }
 
   if (action === "initiate") {
@@ -277,45 +274,6 @@ export async function POST(req: Request) {
     return linkResponse(payload, link, outcome, { resent: true });
   }
 
-  if (action === "verify") {
-    const token = body.token;
-    if (typeof token !== "string" || token.length < 8) {
-      return NextResponse.json(
-        { error: "token is required" },
-        { status: 400 },
-      );
-    }
-    const { data, error } = await supabase.rpc("claim_verify_email", {
-      p_token: token,
-    });
-    if (error) {
-      return NextResponse.json(
-        { error: "claim_verify_email failed", detail: error.message },
-        { status: rpcStatus(error.message) },
-      );
-    }
-    const result = (data ?? {}) as {
-      ok?: boolean;
-      outcome?: string;
-      claim_id?: string;
-      method?: string;
-      status?: string;
-    };
-    if (!result.ok) {
-      const code =
-        result.outcome === "supplier_taken"
-          ? 409
-          : result.outcome === "expired" || result.outcome === "invalid"
-          ? 400
-          : 400;
-      return NextResponse.json(
-        { ok: false, ...result, error: result.outcome ?? "verification_failed" },
-        { status: code },
-      );
-    }
-    return NextResponse.json({ ok: true, ...result });
-  }
-
   if (action === "cancel") {
     const id = body.id;
     if (typeof id !== "string" || !UUID_RE.test(id)) {
@@ -381,7 +339,7 @@ export async function POST(req: Request) {
   return NextResponse.json(
     {
       error:
-        "unknown action; expected one of initiate|verify|cancel|admin_decide|admin_resend",
+        "unknown action; expected one of initiate|cancel|admin_decide|admin_resend",
     },
     { status: 400 },
   );
