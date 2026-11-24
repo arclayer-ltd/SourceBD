@@ -690,9 +690,9 @@ const rfqDoc = (over: Partial<RfqDoc> = {}): RfqDoc => ({
   updated_at: "2026-07-18T10:00:00Z",
   viewer_role: "buyer",
   targets: [
-    { id: "s-aboni", slug: "aboni-knitwear", company_name: "Aboni Knitwear Ltd.", entity_type: "factory", city: "Savar", district: "Dhaka" },
-    { id: "s-sm", slug: "sm-knitwears", company_name: "S M Knitwears Limited", entity_type: "factory", city: "Gazipur", district: null },
-    { id: "s-thermax", slug: "thermax", company_name: "Thermax Woven Dyeing Ltd.", entity_type: "factory", city: "Narsingdi", district: null },
+    { id: "s-aboni", slug: "aboni-knitwear", company_name: "Aboni Knitwear Ltd.", entity_type: "factory", city: "Savar", district: "Dhaka" , is_claimed: true },
+    { id: "s-sm", slug: "sm-knitwears", company_name: "S M Knitwears Limited", entity_type: "factory", city: "Gazipur", district: null , is_claimed: true },
+    { id: "s-thermax", slug: "thermax", company_name: "Thermax Woven Dyeing Ltd.", entity_type: "factory", city: "Narsingdi", district: null , is_claimed: true },
   ],
   quotes: [
     { id: "q-sm", supplier_id: "s-sm", supplier_slug: "sm-knitwears", supplier_name: "S M Knitwears Limited", supplier_entity_type: "factory", unit_price: 9.3, currency: "USD", lead_time_days: 75, moq: 12000, valid_until: "2026-10-25", notes: null, status: "submitted", created_at: "2026-07-20T10:00:00Z", updated_at: "2026-07-20T10:00:00Z" },
