@@ -1,27 +1,13 @@
 #!/usr/bin/env bash
-# SourceBD production VPS deploy script (git-backed).
+# SourceBD production deploy, run on the server. The deploy workflow calls it through
+# ops/gha_vps_deploy.sh; docs/ENTERPRISE_DEPLOYMENT.md is the guide.
 #
-# Target: 109.104.153.228 (SourceBD VPS). Never run against 37.49.227.151
-# (pixelsport-backend, off-limits per access boundaries).
+# Usage on the server:
+#   cd /opt/sourcebd && bash ops/deploy_vps.sh --ref=<commit, tag or branch>
 #
-# Canonical reference: docs/ENTERPRISE_DEPLOYMENT.md
-#
-# Usage on the VPS:
-#   cd /opt/sourcebd && bash ops/deploy_vps.sh --ref=main --require-git
-#   cd /opt/sourcebd && bash ops/deploy_vps.sh --ref=v2026.06.30-1 --require-git
-#   cd /opt/sourcebd && bash ops/deploy_vps.sh --ref=abc1234 --require-git
-#   cd /opt/sourcebd && bash ops/deploy_vps.sh --with-migrations --ref=main
-#
-# Legacy (no .git on VPS — tarball/rsync bootstrap only):
-#   bash ops/deploy_vps.sh
-#
-# Pre-reqs on the VPS (one-time bootstrap, not handled by this script):
-#   - docker + docker-compose
-#   - caddy (apt-get install caddy)
-#   - git clone https://github.com/arclayer-ltd/SourceBD.git /opt/sourcebd
-#   - /opt/sourcebd/.env populated (see ops/deploy/README.md)
-#   - /etc/caddy/Caddyfile -> /opt/sourcebd/ops/Caddyfile (symlink)
-#
+# --ref is required. There is no default: a deploy that guessed would put whatever it guessed on the
+# live site. Database migrations are not part of a deploy; the releaser applies them first.
+
 # IMPORTANT — this script is self-modifying: `main()` performs a `git
 # checkout` on this very repo, which can overwrite ops/deploy_vps.sh on disk
 # mid-run. Bash reads script files incrementally as it executes them, so a
@@ -42,78 +28,61 @@ main() {
 	DEPLOY_START_S="$(date +%s)"
 
 	REPO_DIR="${REPO_DIR:-/opt/sourcebd}"
-	BRANCH="${BRANCH:-development}"
 	REF=""
 	COMPOSE_FILE="docker-compose.yml"
-	WITH_MIGRATIONS=0
-	REQUIRE_GIT=0
 	SKIP_BACKUP=0
 	DEPLOY_META_DIR=".deploy"
 
 	for arg in "$@"; do
 		case "$arg" in
-			--with-migrations) WITH_MIGRATIONS=1 ;;
-			--branch=*) BRANCH="${arg#*=}" ;;
 			--ref=*) REF="${arg#*=}" ;;
-			--require-git) REQUIRE_GIT=1 ;;
 			--skip-backup) SKIP_BACKUP=1 ;;
 			--help|-h)
-				grep '^#' "$0" | sed 's/^# \{0,1\}//' | head -50
+				sed -n '2,10s/^# \{0,1\}//p' "$0"
 				exit 0
 				;;
 			*) echo "Unknown flag: $arg" >&2; exit 2 ;;
 		esac
 	done
 
-	CHECKOUT_TARGET="${REF:-$BRANCH}"
+	[ -n "$REF" ] || die "No release named. Pass --ref=<commit, tag or branch>; nothing was changed."
+	CHECKOUT_TARGET="$REF"
 
 	cd "$REPO_DIR" || die "REPO_DIR $REPO_DIR not found"
-
-	if [ "$REQUIRE_GIT" -eq 1 ] && [ ! -d .git ] && [ ! -f .git ]; then
-		die "Git checkout required (--require-git) but $REPO_DIR has no .git — migrate VPS first (docs/ENTERPRISE_DEPLOYMENT.md)"
-	fi
+	[ -d .git ] || [ -f .git ] || die "$REPO_DIR is not a git checkout; this script deploys only from git"
 
 	PREVIOUS_SHA=""
 	COMMIT_SHA=""
 	CADDYFILE_CHANGED=1
 
-	if [ -d .git ] || [ -f .git ]; then
-		unset GIT_CONFIG_PARAMETERS
-		PREVIOUS_SHA="$(git rev-parse HEAD 2>/dev/null || true)"
+	unset GIT_CONFIG_PARAMETERS
+	PREVIOUS_SHA="$(git rev-parse HEAD 2>/dev/null || true)"
 
-		# Drop an expired HTTPS PAT from origin and fetch with GITHUB_TOKEN
-		# via http extraheader (never written into the remote URL).
-		if [ -f "$REPO_DIR/ops/github_https_fetch_auth.sh" ]; then
-			# shellcheck disable=SC1091
-			. "$REPO_DIR/ops/github_https_fetch_auth.sh"
-			sourcebd_prepare_github_https_fetch
-		fi
+	# Drop an expired HTTPS PAT from origin and fetch with GITHUB_TOKEN
+	# via http extraheader (never written into the remote URL).
+	if [ -f "$REPO_DIR/ops/github_https_fetch_auth.sh" ]; then
+		# shellcheck disable=SC1091
+		. "$REPO_DIR/ops/github_https_fetch_auth.sh"
+		sourcebd_prepare_github_https_fetch
+	fi
 
-		step "Fetching origin and checking out $CHECKOUT_TARGET"
-		git fetch --quiet origin --tags
-		git checkout "$CHECKOUT_TARGET" || die "Could not checkout $CHECKOUT_TARGET"
+	step "Fetching origin and checking out $CHECKOUT_TARGET"
+	git fetch --quiet origin --tags
+	git checkout "$CHECKOUT_TARGET" || die "Could not checkout $CHECKOUT_TARGET"
 
-		# Fast-forward only when target resolves to a remote branch
-		if git show-ref --verify --quiet "refs/remotes/origin/${CHECKOUT_TARGET}"; then
-			git pull --ff-only origin "$CHECKOUT_TARGET" || die "Non-fast-forward pull for $CHECKOUT_TARGET — resolve manually"
-		fi
+	# Fast-forward only when target resolves to a remote branch
+	if git show-ref --verify --quiet "refs/remotes/origin/${CHECKOUT_TARGET}"; then
+		git pull --ff-only origin "$CHECKOUT_TARGET" || die "Non-fast-forward pull for $CHECKOUT_TARGET — resolve manually"
+	fi
 
-		COMMIT_SHA="$(git rev-parse HEAD)"
+	COMMIT_SHA="$(git rev-parse HEAD)"
 
-		if [ -n "$PREVIOUS_SHA" ] && [ "$PREVIOUS_SHA" != "$COMMIT_SHA" ]; then
-			if git diff --quiet "$PREVIOUS_SHA" "$COMMIT_SHA" -- ops/Caddyfile 2>/dev/null; then
-				CADDYFILE_CHANGED=0
-			fi
-		elif [ -n "$PREVIOUS_SHA" ]; then
+	if [ -n "$PREVIOUS_SHA" ] && [ "$PREVIOUS_SHA" != "$COMMIT_SHA" ]; then
+		if git diff --quiet "$PREVIOUS_SHA" "$COMMIT_SHA" -- ops/Caddyfile 2>/dev/null; then
 			CADDYFILE_CHANGED=0
 		fi
-	else
-		if [ "$REQUIRE_GIT" -eq 1 ]; then
-			die "Git required but .git missing"
-		fi
-		step "No .git found — legacy tarball/rsync mode (deprecated for production)"
-		warn "Migrate to git-backed deploy: docs/ENTERPRISE_DEPLOYMENT.md"
-		COMMIT_SHA="${COMMIT_SHA:-rsync}"
+	elif [ -n "$PREVIOUS_SHA" ]; then
+		CADDYFILE_CHANGED=0
 	fi
 
 	mkdir -p "$DEPLOY_META_DIR"
@@ -131,7 +100,7 @@ main() {
 	echo "  head     = $COMMIT_SHA"
 
 	step "Validating .env (never overwritten by this script)"
-	[ -f .env ] || die ".env missing — copy .env.example and populate (see ops/deploy/README.md)"
+	[ -f .env ] || die ".env missing — copy .env.example and fill it in (docs/ENTERPRISE_DEPLOYMENT.md)"
 	required=(SUPABASE_URL SUPABASE_ANON_KEY SUPABASE_SERVICE_ROLE_KEY NEXT_PUBLIC_SUPABASE_URL NEXT_PUBLIC_SUPABASE_ANON_KEY NEXT_PUBLIC_APP_URL)
 	missing=0
 	for key in "${required[@]}"; do
@@ -147,15 +116,6 @@ main() {
 		rollback_tag="sourcebd-web:rollback-${PREVIOUS_SHA:-unknown}"
 		docker tag sourcebd-web:latest "$rollback_tag" 2>/dev/null || warn "Could not tag rollback image"
 		echo "$rollback_tag" > "$DEPLOY_META_DIR/previous-docker-tag"
-	fi
-
-	if [ "$WITH_MIGRATIONS" -eq 1 ]; then
-		step "Applying any new Supabase migrations"
-		warn "Default deploy skips migrations — only --with-migrations should run this."
-		warn "Apply new supabase/migrations/*.sql via etl container + psycopg pattern."
-		echo "  (no-op — wire migration command here for future specs)"
-	else
-		step "Skipping migrations (default)"
 	fi
 
 	# CI on main builds both images next to its checks and pushes them to
@@ -227,7 +187,7 @@ main() {
 		attempt=$((attempt+1))
 		if [ "$attempt" -gt 20 ]; then
 			docker compose -f "$COMPOSE_FILE" logs --tail=80 web >&2
-			die "Web container did not become healthy in 60s — rollback: bash ops/deploy_vps.sh --ref=$(cat "$DEPLOY_META_DIR/previous-sha" 2>/dev/null || echo UNKNOWN) --require-git"
+			die "Web container did not become healthy in 60s — rollback: bash ops/deploy_vps.sh --ref=$(cat "$DEPLOY_META_DIR/previous-sha" 2>/dev/null || echo UNKNOWN)"
 		fi
 		sleep 3
 	done
@@ -271,23 +231,22 @@ main() {
 
 	DEPLOY_ELAPSED_S="$(( $(date +%s) - DEPLOY_START_S ))"
 
-	step "Public health check"
-	# Do not return after localhost is up: Caddy active health checks can
-	# keep serving 503 on :80/:443 for a full health_interval after the
-	# container is healthy. GitHub's public smoke runs the moment SSH
-	# exits, so a warn-and-continue here made a live deploy look failed
-	# (run 31855403484, 15 Aug 2026). 127.0.0.1:80 is Caddy on this box,
-	# whatever its public IP (the server moved off 109.104.153.228, Oct 2026).
+	step "Public health check (the site reads its database)"
+	# Through Caddy (127.0.0.1:80 on this box), and /api/health/db, not /api/health: the
+	# second answers without touching the database, so a site that cannot reach Supabase
+	# passed. Do not return after localhost is up either: GitHub's public smoke runs the
+	# moment SSH exits (run 31855403484, 15 Aug 2026).
 	attempt=0
-	until curl --silent --fail --max-time 5 http://127.0.0.1/api/health >/dev/null; do
+	until curl --silent --fail --max-time 10 http://127.0.0.1/api/health/db >/dev/null; do
 		attempt=$((attempt+1))
 		if [ "$attempt" -gt 20 ]; then
-			die "Public /api/health did not recover in 60s — rollback: bash ops/deploy_vps.sh --ref=$(cat "$DEPLOY_META_DIR/previous-sha" 2>/dev/null || echo UNKNOWN) --require-git"
+			docker compose -f "$COMPOSE_FILE" logs --tail=40 web >&2
+			die "The site did not read its database within a minute (/api/health/db) — rollback: bash ops/deploy_vps.sh --ref=$(cat "$DEPLOY_META_DIR/previous-sha" 2>/dev/null || echo UNKNOWN)"
 		fi
 		sleep 3
 	done
 	echo
-	echo "  ✓ deploy OK — Caddy :80 serves commit $COMMIT_SHA"
+	echo "  ✓ deploy OK — commit $COMMIT_SHA is live and reads its database"
 	echo "  elapsed: ${DEPLOY_ELAPSED_S}s"
 	if [ -f "$DEPLOY_META_DIR/previous-sha" ]; then
 		echo "  rollback ref: $(cat "$DEPLOY_META_DIR/previous-sha")"

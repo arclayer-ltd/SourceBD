@@ -61,7 +61,7 @@ def test_gha_public_smoke_retries_instead_of_one_shot_curl() -> None:
     assert code[0].startswith("python3 ops/wait_for_http_ok.py")
     assert "--attempts 12" in run
     assert "--sleep 5" in run
-    assert code[1].startswith('--url "http://${{ secrets.VPS_HOST }}/api/health"')
+    assert code[1] == '--url "http://${{ secrets.VPS_HOST }}/api/health/db" \\'
     assert "--expect-commit" in run
     assert '${{ steps.pin.outputs.sha }}' in run
     assert not any(ln.startswith("set +e") for ln in code)
@@ -98,7 +98,7 @@ def test_gha_passes_job_token_and_self_contained_vps_script() -> None:
     assert "x-access-token:" not in deploy  # token stays in env, not YAML
 
     remote = (ROOT / "ops" / "gha_vps_deploy.sh").read_text(encoding="utf-8")
-    assert 'bash "$_deploy" --ref="${DEPLOY_REF}" --require-git' in remote
+    assert 'bash "$_deploy" --ref="${DEPLOY_REF}"' in remote
     assert "git config --file" in remote
     assert "http.https://github.com/.extraheader" in remote
     assert r"s#^[Hh][Tt][Tt][Pp][Ss]?://([^/@]+@)?([Ww][Ww][Ww]\.)?[Gg][Ii][Tt][Hh][Uu][Bb]\.[Cc][Oo][Mm]\.?(:443)?/#https://github.com/#" in remote
@@ -187,9 +187,9 @@ def test_health_route_json_commit_comes_from_commit_sha_env() -> None:
 
 def test_deploy_vps_prepares_github_https_fetch_before_git_fetch() -> None:
     text = (ROOT / "ops/deploy_vps.sh").read_text(encoding="utf-8")
-    assert "[ ! -d .git ] && [ ! -f .git ]" in text
-    assert "[ -d .git ] || [ -f .git ]" in text
-    _, git_block = text.split("if [ -d .git ] || [ -f .git ]; then", 1)
+    guard = '[ -d .git ] || [ -f .git ] || die'
+    assert guard in text
+    _, git_block = text.split(guard, 1)
     code = [
         ln.strip()
         for ln in git_block.splitlines()
@@ -213,6 +213,8 @@ def test_deploy_vps_waits_for_public_health_before_returning() -> None:
         if ln.strip() and not ln.strip().startswith("#")
     ]
     until_i = next(i for i, ln in enumerate(code) if ln.startswith("until "))
+    # The check that ends a deploy must touch the database: /api/health answers without it.
+    assert "http://127.0.0.1/api/health/db" in code[until_i]
     cap_i = next(i for i, ln in enumerate(code) if "-gt 20" in ln or "-ge 20" in ln)
     die_i = next(i for i, ln in enumerate(code) if ln.startswith("die "))
     ok_i = next(i for i, ln in enumerate(code) if "deploy OK" in ln)
@@ -402,3 +404,60 @@ def test_pin_commands_peel_annotated_tag_to_the_commit_health_reports(
     assert commit != commit2
     assert commit not in (tag_obj,)
     assert pin.returncode == 0
+
+
+def _deploy_vps(tmp_path: Path, *args: str) -> tuple[subprocess.CompletedProcess[str], Path]:
+    """Run ops/deploy_vps.sh against a throwaway checkout; any docker call is recorded, never made."""
+    env = _isolate_git_env()
+    repo = tmp_path / "srv"
+    repo.mkdir()
+    subprocess.run(["git", "init", "-q"], cwd=repo, check=True, env=env)
+    subprocess.run(["git", "commit", "-q", "--allow-empty", "-m", "live"], cwd=repo, check=True, env=env)
+    fake = tmp_path / "bin"
+    fake.mkdir()
+    calls = tmp_path / "calls.log"
+    for tool in ("docker", "curl", "systemctl", "caddy"):
+        (fake / tool).write_text(f'#!/usr/bin/env bash\necho "{tool} $*" >> "{calls}"\nexit 1\n', encoding="utf-8")
+        (fake / tool).chmod(0o755)
+    env["PATH"] = f"{fake}{os.pathsep}{env['PATH']}"
+    env["REPO_DIR"] = str(repo)
+    result = subprocess.run(
+        ["bash", str(ROOT / "ops/deploy_vps.sh"), *args],
+        capture_output=True,
+        text=True,
+        env=env,
+        timeout=60,
+    )
+    return result, calls
+
+
+def test_deploy_vps_refuses_to_run_without_a_named_release(tmp_path: Path) -> None:
+    """Run bare, it used to check out `development` and put it on the live site."""
+    result, calls = _deploy_vps(tmp_path)
+    assert result.returncode != 0
+    assert "--ref" in result.stderr
+    assert not calls.exists()
+    assert not (tmp_path / "srv" / ".deploy").exists()
+
+
+def test_deploy_vps_has_no_migrations_flag_that_does_nothing(tmp_path: Path) -> None:
+    """--with-migrations printed "Applying" and applied nothing."""
+    text = (ROOT / "ops/deploy_vps.sh").read_text(encoding="utf-8")
+    assert "with-migrations" not in text
+    result, calls = _deploy_vps(tmp_path, "--ref=main", "--with-migrations")
+    assert result.returncode == 2
+    assert "Unknown flag: --with-migrations" in result.stderr
+    assert not calls.exists()
+
+
+def test_deploy_guide_is_one_current_document_naming_no_server_address() -> None:
+    guide = (ROOT / "docs/ENTERPRISE_DEPLOYMENT.md").read_text(encoding="utf-8")
+    address = r"\b\d{1,3}(\.\d{1,3}){3}\b"  # 127.0.0.1 is the server itself, wherever it is
+    assert not re.search(address, guide.replace("127.0.0.1", "")), "the guide names a fixed server address"
+    assert "/api/health/db" in guide
+    assert "--with-migrations" not in guide
+    assert "--require-git" not in guide
+    assert not (ROOT / "ops/deploy/README.md").exists()
+    for script in ("ops/deploy_vps.sh", "ops/gha_vps_deploy.sh"):
+        text = (ROOT / script).read_text(encoding="utf-8")
+        assert not re.search(address, text.replace("127.0.0.1", "")), script

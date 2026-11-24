@@ -90,10 +90,11 @@ jobs:
         # container is already serving 127.0.0.1:3000 (Deploy Production
         # 31855403484, 15 Aug 2026: SSH deploy succeeded, first public curl
         # got 503, https://sourcebd.net/api/health was 200 seconds later).
-        # Retry until the public URL is 200 with the requested commit.
+        # Retry until the public URL is 200 with the requested commit. /api/health/db,
+        # not /api/health: it is 200 only when the site can read its database.
         run: |
           python3 ops/wait_for_http_ok.py \
-            --url "http://${{ secrets.VPS_HOST }}/api/health" \
+            --url "http://${{ secrets.VPS_HOST }}/api/health/db" \
             --attempts 12 \
             --sleep 5 \
             --expect-commit "${{ steps.pin.outputs.sha }}"
