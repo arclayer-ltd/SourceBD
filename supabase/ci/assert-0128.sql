@@ -11,9 +11,6 @@ insert into auth.users (id, email, raw_user_meta_data) values
   ('00000000-0000-4000-8000-00000000b128', 'buyer-0128@example.invalid', '{"role":"buyer"}'::jsonb)
 on conflict do nothing;
 
--- Sign-up never makes an admin (0159); the role is set on the profile afterwards.
-update public.profiles set role = 'admin' where id = '00000000-0000-4000-8000-00000000a128';
-
 insert into public.suppliers (id, slug, company_name, company_name_norm, city, district, is_published, is_sanctioned)
   -- Not published: the publish trigger wants a Tier 1-3 source record, and the plan does not care.
   values ('00000000-0000-4000-8000-0000000a1128', 'ci-0128-knit', 'CI 0128 Knit Ltd', 'ci 0128 knit ltd', 'Dhaka', 'Dhaka', false, false);

@@ -123,8 +123,8 @@ export function ClaimSearchForm({ prebound }: ClaimSearchFormProps) {
         }
         const parts = [
           json.method === "domain_email"
-            ? "This email is at the company's own domain, so clicking the link in it approves your claim."
-            : "Confirm your email, then someone at SourceBD checks the claim. Its status shows on this page.",
+            ? "Domain matches — clicking the verification link will activate your claim immediately."
+            : "Verify your email, then an admin will review the claim.",
         ];
         if (json.email_sent === false && json.dev_verification_url) {
           parts.push(`Dev link: ${json.dev_verification_url}`);
@@ -207,7 +207,7 @@ export function ClaimSearchForm({ prebound }: ClaimSearchFormProps) {
         <form onSubmit={submit} className="flex flex-col gap-4">
           <Field
             label="Proof email (must be at your company)"
-            help="An email at the company's own web domain is approved when you click its link. Gmail, Yahoo and other shared addresses are checked by a person first."
+            help="If this domain matches the company's published website, your claim is approved automatically."
           >
             {(a) => (
               <Input

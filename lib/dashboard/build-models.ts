@@ -191,6 +191,8 @@ export type RecordInput = {
   hscodesError?: boolean;
   workers: WorkersDisplay;
   today: Date;
+  /** Gallery only: render the sanctioned state on a record that is not sanctioned in production, labelled as a sample. */
+  sanctionSample?: boolean;
 };
 
 // ---- shared pieces ----
@@ -957,7 +959,7 @@ export function buildCard(filed: RecordInput): SupplierCardModel {
   const lines = headings(input);
   const brands = brandLabels(p);
   const registers = registerPills(p);
-  const sanctioned = s.is_sanctioned;
+  const sanctioned = s.is_sanctioned || Boolean(input.sanctionSample);
   const epbRead = readDateOf(p, "EPB");
 
   // A chip opens the record at its section: the results have no
@@ -1021,6 +1023,7 @@ export function buildCard(filed: RecordInput): SupplierCardModel {
     // The head's facts, the register number among them (it was the Registers tile's).
     meta: metaFacts(input, { registerNumber: true }),
     sanctioned,
+    sanctionSample: input.sanctionSample,
     chips,
     sourcesCaption,
     sourcesNote,
@@ -1079,7 +1082,8 @@ export function buildTableRow(filed: RecordInput): TableRowModel {
     // file" and dropped the half that says the figure is entirely a
     // building's, which the card has carried since cycle 6.
     workersCoverage: workersCoverageWords(w)?.replace(/^across /, "") ?? null,
-    sanctioned: s.is_sanctioned,
+    sanctioned: s.is_sanctioned || Boolean(input.sanctionSample),
+    sanctionSample: input.sanctionSample,
   };
 }
 
@@ -1426,7 +1430,8 @@ export function buildSheet(filed: RecordInput, options: SheetOptions = {}): Supp
     meta: metaFacts(input, { registerNumber: true }),
     readDate: readDateWords(p),
     sourceCount: marks.length,
-    sanctioned: s.is_sanctioned,
+    sanctioned: s.is_sanctioned || Boolean(input.sanctionSample),
+    sanctionSample: input.sanctionSample,
     // Every tab now has a section behind it (REZ-C).
     tabs: [
       { label: "Overview", count: null, href: "#overview", active: true },
@@ -1453,7 +1458,7 @@ export function buildSheet(filed: RecordInput, options: SheetOptions = {}): Supp
       // (founder, 12 Oct 2026). Never read from the profile payload, whatever it carries.
       // A sanctioned record never shows them: the database answers null for one (0145), and this holds
       // the line here too, because SourceBD refuses to send it an RFQ and a mail link would undo that.
-      details: options.contactDetails && options.contactDetails !== "limited" && !s.is_sanctioned ? options.contactDetails : null,
+      details: options.contactDetails && options.contactDetails !== "limited" && !s.is_sanctioned && !input.sanctionSample ? options.contactDetails : null,
       limited: options.contactDetails === "limited",
     },
     readDates: readDates || null,
@@ -1756,7 +1761,8 @@ export function buildProductSheet(filed: RecordInput, hs: string, options: Produ
   ].filter(Boolean);
   return {
     supplierName: displayName(s.company_name),
-    sanctioned: s.is_sanctioned,
+    sanctioned: s.is_sanctioned || Boolean(input.sanctionSample),
+    sanctionSample: input.sanctionSample,
     hs: code,
     // The eyebrow may only call this an EPB export line when the record's own
     // EPB page carries it; otherwise it is a heading the buyer arrived at.
@@ -1851,7 +1857,7 @@ export type RfqListRow = {
 export function buildRfqRow(
   r: RfqListRow,
   /** Resolved target, when REZ-D's join gives one. A sanction on it must reach this row (spec §2). */
-  supplier: { name: string; tier: TierRank; sanctioned?: boolean } | null,
+  supplier: { name: string; tier: TierRank; sanctioned?: boolean; sanctionSample?: boolean } | null,
   today: Date,
 ): RfqRowModel {
   // `rfq_list` returns the RFQ's own enum, `quote_count`, `target_supplier_count`
@@ -1882,7 +1888,8 @@ export function buildRfqRow(
     supplierInitials: supplier ? initials(supplier.name) : null,
     supplierTier: supplier?.tier ?? null,
     supplierCount: count,
-    sanctioned: Boolean(supplier?.sanctioned),
+    sanctioned: Boolean(supplier?.sanctioned) || Boolean(supplier?.sanctionSample),
+    sanctionSample: supplier?.sanctionSample,
     quantity: `${formatCount(r.quantity)} ${r.quantity_unit}`,
     status,
     sent: formatDay(r.created_at),

@@ -40,7 +40,7 @@ beforeEach(() => {
   resetFake();
   fake.tables.suppliers = [
     row(A, "aboni-knitwear"),
-    row(B, "sanctioned-knit", { is_sanctioned: true }),
+    row(B, "zaheen-knitwear", { is_sanctioned: true }),
     row(C, "gone-ltd", { is_published: false }),
   ];
 });
@@ -56,7 +56,7 @@ describe("GET /api/v1/suppliers", () => {
   });
 
   it("resolves ids and slugs together, once each, published only, sanction flagged", async () => {
-    const res = await get(`?ids=${A},${C}&slugs=sanctioned-knit,aboni-knitwear`);
+    const res = await get(`?ids=${A},${C}&slugs=zaheen-knitwear,aboni-knitwear`);
     assert.equal(res.status, 200);
     const { rows } = (await res.json()) as { rows: { id: string; slug: string; is_sanctioned: boolean }[] };
     assert.deepEqual(rows.map((r) => r.id).sort(), [A, B].sort(), "the unpublished supplier came back, or one came back twice");
@@ -67,16 +67,6 @@ describe("GET /api/v1/suppliers", () => {
       assert.doesNotMatch(c.columns, CONTACT_KEY_RE, "the route selected a contact column");
       assert.ok(c.filters.some((f) => f.op === "eq" && f.args[0] === "is_published" && f.args[1] === true), "read without the published filter");
     }
-  });
-
-  it("says which suppliers are on SourceBD, so the composer can say which will get the RFQ, and never who claimed one", async () => {
-    fake.tables.suppliers = [row(A, "aboni-knitwear", { is_claimed: true, claimed_by: "user-1" }), row(B, "zaheen-knitwear")];
-    const res = await get(`?ids=${A},${B}`);
-    const { rows } = (await res.json()) as { rows: { id: string; is_claimed: boolean }[] };
-    assert.equal(rows.find((r) => r.id === A)?.is_claimed, true);
-    assert.equal(rows.find((r) => r.id === B)?.is_claimed, false);
-    for (const c of fake.fromCalls) assert.doesNotMatch(c.columns, /claimed_by/, "the route read who claimed a supplier");
-    assert.doesNotMatch(JSON.stringify(rows), /user-1|claimed_by/);
   });
 
   it("never passes a contact column on, even when a read returns one", async () => {

@@ -1025,6 +1025,7 @@ export function PhoneRecord({
             </p>
           ) : null}
         </div>
+        {model.sanctionSample ? <p className="pb-3 text-xs text-ink-2">Sample state. No published supplier is on a sanctions list today; no real company is shown.</p> : null}
         {/* The three statuses in one short strip from the start (founder, 13 Oct 2026: the three rows said what Checks says). It opens Checks. */}
         <PhoneTabLink tab="checks" href={sectionHref("checks")} aria-label={`Checks: ${status.map((s) => s.short).join(", ")}`} className={cn("relative block rounded-lg before:absolute before:inset-x-0 before:-inset-y-[7px] active:opacity-70", ring)}>
           <span data-phone-summary="" className="block">

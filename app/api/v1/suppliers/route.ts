@@ -35,7 +35,6 @@ type TargetRow = {
   district: string | null;
   source_tags: string[] | null;
   is_sanctioned: boolean;
-  is_claimed: boolean;
 };
 
 function list(v: string | null, re: RegExp): string[] | null {
@@ -85,7 +84,6 @@ export async function GET(req: Request) {
         district: typeof raw.district === "string" ? raw.district : null,
         source_tags: Array.isArray(raw.source_tags) ? raw.source_tags.filter((t): t is string => typeof t === "string") : null,
         is_sanctioned: raw.is_sanctioned === true,
-        is_claimed: raw.is_claimed === true,
       });
     }
   }

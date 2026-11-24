@@ -10,8 +10,8 @@ import type { ComposerTarget, ComposerWorkspace } from "@/components/rfqs/compos
 import { displayName, entityLabel, initials, placeLabel } from "@/lib/dashboard/facts";
 import { marksFromTags, topTier } from "@/lib/dashboard/source-tiers";
 
-/** The only supplier columns a composer target is read from. Each is granted to `authenticated` (0083, 0162); none is a contact detail. */
-export const TARGET_COLUMNS = "id, slug, company_name, entity_type, city, district, source_tags, is_published, is_sanctioned, is_claimed";
+/** The only supplier columns a composer target is read from. Each is granted to `authenticated` (0083); none is a contact detail. */
+export const TARGET_COLUMNS = "id, slug, company_name, entity_type, city, district, source_tags, is_published, is_sanctioned";
 
 /** A supplier as the suppliers table, the saved list and `rfq_get`'s targets carry it. Never a contact value. */
 export type SupplierRow = {
@@ -24,8 +24,6 @@ export type SupplierRow = {
   source_tags?: string[] | null;
   is_published?: boolean | null;
   is_sanctioned?: boolean | null;
-  /** Someone has claimed the company: only then can it read an RFQ. Never who (0162). */
-  is_claimed?: boolean | null;
 };
 
 export function targetFromRow(r: SupplierRow): ComposerTarget {
@@ -41,7 +39,6 @@ export function targetFromRow(r: SupplierRow): ComposerTarget {
     place: placeLabel(r.city ?? null, r.district ?? null),
     type: entityLabel(r.entity_type ?? null),
     sanctioned: Boolean(r.is_sanctioned),
-    claimed: r.is_claimed === true,
   };
 }
 

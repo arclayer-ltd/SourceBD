@@ -699,7 +699,7 @@ describe("the view's rules", () => {
     it("a sanctioned record never draws them, whatever the read returned: it keeps the locked card", () => {
       // The database answers null for a sanctioned supplier (0145, run in supabase/ci/assert-0145.sql);
       // the sheet holds the same line, so an older function could not put a mail link on this record.
-      for (const input of [sanctionedInput()]) {
+      for (const input of [sanctionedInput(), zaheenSampleInput()]) {
         const sheet = unlocked(input);
         assert.equal(sheet.sanctioned, true, "guard: the record is sanctioned");
         assert.equal(sheet.contact.details, null);
@@ -733,7 +733,8 @@ describe("the view's rules", () => {
     });
 
     it("what the profile payload carried still never renders: only what came through details does", () => {
-      const leaky = zaheenSampleInput();
+      // The fixture is drawn as a sanctioned SAMPLE, which never shows details; here it is an ordinary record.
+      const leaky = { ...zaheenSampleInput(), sanctionSample: false };
       const out = both(unlocked(leaky), { mode: "page" });
       assert.match(out, /mailto:sales@aboni\.example/, "guard: the details are drawn");
       for (const v of Object.values(leaky.leaked).flat()) assert.ok(!out.includes(v), `a contact value from the payload reached the record: ${v}`);

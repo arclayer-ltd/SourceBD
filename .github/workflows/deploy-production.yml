@@ -62,13 +62,6 @@ jobs:
           git fetch --tags origin "${DEPLOY_REF}"
           EXPECT="$(git rev-parse "FETCH_HEAD^{commit}")"
           echo "sha=${EXPECT}" >> "$GITHUB_OUTPUT"
-          # The smoke test reads /api/health/db, which answers only when the site can read its
-          # database. A commit from before that route existed (a rollback) has only /api/health.
-          if git cat-file -e "${EXPECT}:app/api/health/db/route.ts" 2>/dev/null; then
-            echo "health=/api/health/db" >> "$GITHUB_OUTPUT"
-          else
-            echo "health=/api/health" >> "$GITHUB_OUTPUT"
-          fi
           # Images are tagged by source tree, so a manual deploy of any ref
           # whose tree CI has built (a rollback, say) also pulls instead of
           # building. No such image: the server builds, as before.
@@ -97,12 +90,10 @@ jobs:
         # container is already serving 127.0.0.1:3000 (Deploy Production
         # 31855403484, 15 Aug 2026: SSH deploy succeeded, first public curl
         # got 503, https://sourcebd.net/api/health was 200 seconds later).
-        # Retry until the public URL is 200 with the requested commit. /api/health/db,
-        # not /api/health: it is 200 only when the site can read its database. The pin
-        # step falls back to /api/health for a commit that predates it.
+        # Retry until the public URL is 200 with the requested commit.
         run: |
           python3 ops/wait_for_http_ok.py \
-            --url "http://${{ secrets.VPS_HOST }}${{ steps.pin.outputs.health }}" \
+            --url "http://${{ secrets.VPS_HOST }}/api/health" \
             --attempts 12 \
             --sleep 5 \
             --expect-commit "${{ steps.pin.outputs.sha }}"

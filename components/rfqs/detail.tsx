@@ -58,7 +58,7 @@ function QuoteAction({ q, m, order, size = "md", full = false, best }: { q: Quot
 }
 
 function NoReplyNote({ n }: { n: NoReplyModel }) {
-  return n.reached ? <>No reply yet · RFQ sent {n.sent}</> : <>Not on SourceBD yet · has not received this RFQ</>;
+  return <>No reply yet · RFQ sent {n.sent}</>;
 }
 
 /** The quotes as the page draws them from 1280: a real table. */
@@ -288,7 +288,7 @@ function PriceChart({ c }: { c: QuoteChart }) {
               {r.delta ? <span className={cn("text-xs font-medium", r.over ? "text-caution" : "text-brand-ink")}>{r.delta}</span> : null}
             </span>
           ) : (
-            <span className="w-24 shrink-0 text-right text-xs text-ink-3">{r.reached ? "No quote yet" : "Not received"}</span>
+            <span className="w-24 shrink-0 text-right text-xs text-ink-3">No quote yet</span>
           )}
         </div>
       ))}
@@ -406,14 +406,10 @@ function RequestBody({ rfq, others, rule }: { rfq: RfqDoc; others: { id: string;
             <Link href={`/app/suppliers/${t.slug}`} prefetch={false} className="inline-flex w-fit rounded-sm text-base font-medium text-ink outline-none max-sm:min-h-11 max-sm:items-center hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus">
               {t.company_name}
             </Link>
-            <span className="text-xs text-ink-3">{[entityPlace(t), t.is_claimed ? null : "not on SourceBD yet, has not received it"].filter(Boolean).join(" · ")}</span>
+            <span className="text-xs text-ink-3">{entityPlace(t)}</span>
           </div>
         ))}
-        <p className="text-sm text-ink-3">
-          {rfq.targets.every((t) => t.is_claimed)
-            ? "Each got its own copy. None sees the others."
-            : "Each supplier on SourceBD got its own copy; none sees the others. One not on SourceBD yet sees this RFQ only once it claims its company here."}
-        </p>
+        <p className="text-sm text-ink-3">Each got its own copy. None sees the others.</p>
       </section>
       {others.length > 0 ? (
         <>

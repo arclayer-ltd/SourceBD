@@ -1,8 +1,7 @@
 // The supplier claim track at the boundary: the landing (history, the form, an unreadable history), one
 // claim's status page (each status, a claim that is not yours is a 404), and the page the email link opens
-// (no token, each refusal, approved, waiting for a person). Drawn over a fake Supabase client installed
-// before the pages load, and a `fetch` that records any call: the link's page must not call our own API,
-// which refused it for want of the visitor's session (issue 643).
+// (no token, a refusal, approved, waiting for a person). Drawn over a fake Supabase client and a fake
+// `fetch`, both installed before the pages load.
 
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -32,16 +31,11 @@ const claim = (over: Record<string, unknown> = {}) => ({
 
 type Rpc = { data: unknown; error: { message: string } | null };
 let mine: Rpc = { data: { results: [claim()] }, error: null };
-let verified: Rpc = { data: { ok: true }, error: null };
-let rpcCalls: [string, unknown][] = [];
 let supplierRow: Record<string, unknown> | null = null;
 {
   const id = require.resolve(path.join(OUT, "lib/supabase/server.js"));
   const client = {
-    rpc: async (fn: string, args?: unknown) => {
-      rpcCalls.push([fn, args]);
-      return fn === "claim_verify_email" ? verified : mine;
-    },
+    rpc: async () => mine,
     from: () => {
       const q = { select: () => q, eq: () => q, maybeSingle: async () => ({ data: supplierRow, error: null }) };
       return q;
@@ -54,10 +48,14 @@ let supplierRow: Record<string, unknown> | null = null;
   require.cache[id] = { id, filename: id, loaded: true, exports: { headers: async () => new Headers({ host: "localhost:3000" }) }, children: [], paths: [] } as unknown as NodeJS.Module;
 }
 
-let fetched: string[] = [];
-globalThis.fetch = (async (url: string) => {
-  fetched.push(String(url));
-  return { ok: false, status: 401, json: async () => ({ error: "not authenticated" }) };
+type Api = { status: number; json: unknown } | "down";
+let api = { status: 200, json: { ok: true } } as Api;
+let posted: { url: string; body: unknown }[] = [];
+globalThis.fetch = (async (url: string, init?: { body?: string }) => {
+  posted.push({ url, body: init?.body ? JSON.parse(init.body) : null });
+  const a = api;
+  if (a === "down") throw new Error("connect refused");
+  return { ok: a.status < 400, status: a.status, json: async () => a.json };
 }) as unknown as typeof fetch;
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports -- the stubs must be installed before the page modules load.
@@ -76,9 +74,8 @@ const verify = async (token?: string) => draw(await load(VERIFY)({ searchParams:
 const reset = () => {
   mine = { data: { results: [claim()] }, error: null };
   supplierRow = null;
-  verified = { data: { ok: true }, error: null };
-  rpcCalls = [];
-  fetched = [];
+  api = { status: 200, json: { ok: true } };
+  posted = [];
 };
 
 describe("/supplier/claim", () => {
@@ -157,8 +154,6 @@ describe("/supplier/claim/[id]", () => {
 });
 
 describe("/supplier/claim/verify", () => {
-  const verifyCalls = () => rpcCalls.filter(([fn]) => fn === "claim_verify_email");
-
   it("no token is the malformed-link panel", async () => {
     reset();
     const out = await verify();
@@ -166,56 +161,38 @@ describe("/supplier/claim/verify", () => {
     assert.match(text(out), /The verification link is malformed/);
     assert.match(out, /role="alert"/);
     assert.match(out, /href="\/supplier\/claim"/);
-    assert.equal(verifyCalls().length, 0, "nothing is spent without a token");
+    assert.equal(posted.length, 0, "nothing is sent without a token");
   });
 
-  it("spends the token once with the visitor's own session, never through our API, and says approved", async () => {
+  it("posts the token once, and says approved when the domain matched", async () => {
     reset();
-    verified = { data: { ok: true, claim_id: "c-1", outcome: "approved", method: "domain_email" }, error: null };
+    api = { status: 200, json: { ok: true, claim_id: "c-1", outcome: "approved" } };
     const out = await verify("tok-1");
-    assert.deepEqual(verifyCalls(), [["claim_verify_email", { p_token: "tok-1" }]]);
-    assert.deepEqual(fetched, [], "the page called an HTTP route, which the middleware refuses without the visitor's cookies");
+    assert.deepEqual(posted.map((p) => [p.url, p.body]), [["http://localhost:3000/api/v1/claims", { action: "verify", token: "tok-1" }]]);
     assert.match(out, /<h1[^>]*>Email verified<\/h1>/);
     assert.match(text(out), /Claim approved/);
-    assert.match(text(out), /You now manage this company on SourceBD\./);
+    assert.match(text(out), /You now own this profile\./);
     assert.match(out, /href="\/supplier\/claim\/c-1"[^>]*>View claim</);
   });
 
-  it("says a person checks it when the email does not prove the company, and promises no email", async () => {
+  it("says a person will review it when the domain did not match", async () => {
     reset();
-    verified = { data: { ok: true, claim_id: "c-1", outcome: "pending_admin", method: "manual_review" }, error: null };
+    api = { status: 200, json: { ok: true, claim_id: "c-1", outcome: "pending_admin" } };
     const t = text(await verify("tok-1"));
     assert.match(t, /Awaiting admin review/);
-    assert.match(t, /Someone at SourceBD now checks that this email belongs to the company/);
-    assert.doesNotMatch(t, /approved\.|You now manage|notify you|by email/);
+    assert.match(t, /An admin will review your request/);
   });
 
-  it("each refusal says what happened in words, not a code", async () => {
-    const cases: [string, RegExp, RegExp][] = [
-      ["expired", /This link has expired/, /work for 24 hours/],
-      ["invalid", /This link does not work/, /latest claim email/],
-      ["not_pending", /This link has already been used/, /Its status is on your claims page/],
-      ["supplier_taken", /This company has already been claimed/, /Someone else finished claiming it/],
-    ];
-    for (const [outcome, title, detail] of cases) {
-      reset();
-      verified = { data: { ok: false, outcome, claim_id: "c-1" }, error: null };
-      const out = await verify("tok-1");
-      assert.match(out, /role="alert"/, outcome);
-      assert.match(text(out), title, outcome);
-      assert.match(text(out), detail, outcome);
-      assert.doesNotMatch(text(out), /Email verified|not authenticated/, outcome);
-      assert.match(out, /href="\/supplier\/claim\/c-1"/, outcome);
-    }
-  });
-
-  it("a database error is a panel that says to try again, not the raw error", async () => {
+  it("a refusal and an unreachable route are panels with the reason", async () => {
     reset();
-    verified = { data: null, error: { message: "permission denied for function claim_verify_email" } };
-    const out = await verify("tok-1");
+    api = { status: 400, json: { ok: false, detail: "This link has expired." } };
+    let out = await verify("tok-1");
+    assert.match(out, /<h1[^>]*>Verification failed<\/h1>/);
+    assert.match(text(out), /This link has expired\./);
+    api = "down";
+    out = await verify("tok-1");
     assert.match(out, /<h1[^>]*>Could not verify<\/h1>/);
-    assert.match(text(out), /Try the link again in a minute/);
-    assert.doesNotMatch(text(out), /permission denied/);
+    assert.match(text(out), /connect refused/);
   });
 });
 

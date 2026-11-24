@@ -41,10 +41,9 @@ the same ciphertext. A record for a court that cannot be read is no record.
 
 To rotate the key, run `select public._messages_rotate_key('<why>');` in the SQL editor as the
 project owner (migration 0151). It makes a new key and re-encrypts every message under it, so the
-old copy opens nothing afterwards: repeat steps 1 to 4 for the new key the same day. Never set
-the key any other way (an `alter database ... set app.messages_key`, or writing the
-`app_private_settings` row by hand): that swaps the key without re-encrypting, and every earlier
-message becomes unreadable. Migration 0078 creates the first key in every database.
+old copy opens nothing afterwards: repeat steps 1 to 4 for the new key the same day. Do not use
+`ops/configure_messages_key.py --rotate` once messages exist: it swaps the key without
+re-encrypting, and every earlier message becomes unreadable.
 
 The key was rotated by 0151 itself when that migration was applied (it had been readable by any
 visitor through the database API; `ops/plans/data-integrity-audit.md`, S1-0). No offline copy is

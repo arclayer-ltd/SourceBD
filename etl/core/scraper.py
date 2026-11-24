@@ -109,41 +109,6 @@ class ScrapedRecord:
 HEARTBEAT_EVERY = 25
 
 
-class IncompleteRead(RuntimeError):
-    """A run finished without an error but did not read its source (#654)."""
-
-
-def refuse_incomplete_read(
-    *, code: str, run_id: str, seen: int, failed_saves: int, whole_read: bool, accept: bool
-) -> None:
-    """Raise IncompleteRead instead of letting a run close as a success when it
-    read nothing, far less than its last complete read, or failed to save.
-
-    Both run engines call this from `_close_run`. Every run loop closes a raised
-    error as 'failed' and re-raises it, so the source's read date stays put and
-    the queue retries and alerts as for any other failed run.
-    """
-    from etl.core.breaker import read_shortfall
-
-    last_complete = None
-    if whole_read and seen and not failed_saves:
-        with db.conn() as c, c.cursor() as cur:
-            cur.execute(
-                """select records_seen from public.etl_runs
-                    where scraper_code = %s and id <> %s::uuid and status = 'success'
-                      and records_seen > 0
-                      and coalesce((meta ->> 'complete')::boolean, true)
-                    order by finished_at desc nulls last limit 1""",
-                (code, run_id),
-            )
-            row = cur.fetchone()
-            last_complete = int(row["records_seen"]) if row else None
-    reason = read_shortfall(seen=seen, failed_saves=failed_saves,
-                            last_complete=last_complete, whole_read=whole_read, accept=accept)
-    if reason:
-        raise IncompleteRead(f"{code}: {reason}. Not counted as a complete read.")
-
-
 class BaseScraper(abc.ABC):
     """Inherit and implement `fetch()`. Lifecycle: run() handles run-log + commit."""
 
@@ -152,10 +117,6 @@ class BaseScraper(abc.ABC):
     # Which acquisition transport this source uses. Surfaced as the transport
     # badge in /admin/sources; see etl/acquire/ for the adapters.
     transport: str = "direct"
-    # True when a run reads the source's whole list, so an empty or much
-    # smaller read means the read broke. False for a pass over a gated subset
-    # (only what changed), where an empty run is normal.
-    whole_read: bool = True
     progress_callback: Callable[[dict[str, Any]], None] | None = None
 
     def __init__(self) -> None:
@@ -167,8 +128,6 @@ class BaseScraper(abc.ABC):
         self.breaker: Breaker | None = None
         # Founder knob (`run <code> --accept-changes`): release a held run.
         self.accept_changes = False
-        # Records whose save raised this run. Any one makes the read incomplete.
-        self.failed_saves = 0
         # Documents seen this run. A list page cited by 200 records is one
         # document and one credit, not two hundred.
         self._evidence_doc_ids: set[str] = set()
@@ -236,7 +195,6 @@ class BaseScraper(abc.ABC):
                     supplier_id = upsert_supplier_with_source(rec)
                 except Exception as e:  # noqa: BLE001
                     skipped += 1
-                    self.failed_saves += 1
                     self.log.error("upsert.failed", source_ref=rec.source_ref, error=str(e))
                 else:
                     if supplier_id is None:
@@ -329,7 +287,6 @@ class BaseScraper(abc.ABC):
             run_id = str(cur.fetchone()["id"])
             self.last_run_id = run_id
             c.commit()
-            self.failed_saves = 0
             self.log.info("run.start", run_id=run_id)
             return run_id
 
@@ -345,11 +302,6 @@ class BaseScraper(abc.ABC):
         breaker = self.breaker.summary() if self.breaker is not None else None
         if status == "success" and breaker and breaker["tripped"]:
             status = "held"
-        if status == "success":
-            refuse_incomplete_read(
-                code=self.code, run_id=run_id, seen=seen, failed_saves=self.failed_saves,
-                whole_read=self.whole_read, accept=self.accept_changes,
-            )
         # S3 (§4.9): what the Sources page and the digest read. A held or failed
         # run is not a complete read, so it never refreshes the source's age.
         run_meta = json.dumps({"credits_used": self.credits_used, "complete": status == "success"})

@@ -533,7 +533,6 @@ class BrandDisclosureBase(AcquiringScraper, abc.ABC):
                             enqueued += 1
                 except Exception as exc:  # noqa: BLE001
                     skipped += 1
-                    self.failed_saves += 1
                     self.log.error("upsert.failed", source_ref=rec.source_ref, error=str(exc))
                 else:
                     if supplier_id is None:

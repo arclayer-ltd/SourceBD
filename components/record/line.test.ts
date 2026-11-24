@@ -12,7 +12,7 @@ import { createElement, type ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
 import { buildProductSheet } from "@/lib/dashboard/build-models";
-import { aboniInput, arFashionInput, sanctionedInput } from "@/lib/dashboard/fixtures";
+import { aboniInput, arFashionInput, sanctionedInput, zaheenSampleInput } from "@/lib/dashboard/fixtures";
 import type { FactRow, ProductSheetModel } from "@/lib/dashboard/models";
 import { LineView } from "@/components/record/line-view";
 import { PHOTO_CAPTION, lineEyebrow, lineFacts } from "@/components/record/words";
@@ -219,6 +219,10 @@ describe("a sanctioned record's line", () => {
     assert.match(out, /Exporters of 6105/, "the record stays readable for due diligence");
   });
 
+  it("says when it is a sample record", () => {
+    const out = plain(view(buildProductSheet(zaheenSampleInput(), "6105", LINKS)));
+    assert.match(out, /Sanctioned · sample record: matched on a sanctions screen\./);
+  });
 });
 
 describe("what the view never holds", () => {

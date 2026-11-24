@@ -190,8 +190,6 @@ class RscDocumentsScraper(AcquiringScraper):
     code = "rsc_documents"
     source_code = "RSC"
     transport = "direct"
-    # Can be narrowed to one supplier or a limit, so its size is not comparable.
-    whole_read = False
     fallback_transport = None
     # `run()` catalogs documents directly; `fetch()` is a stub.
     yields_records = False

@@ -139,7 +139,7 @@ describe("the product and solutions pages", () => {
     const out = page("product/compliance", LIST_FACTS);
     const t = text(out);
     const table = text(out.slice(out.indexOf("<table"), out.indexOf("</table>")));
-    for (const w of ["UFLPA Entity List", "US Treasury, OFAC 9,990 8 Oct 2026", "UK Sanctions List UK Foreign Office (FCDO) 1,286 6 Oct 2026", "EU sanctions map", "US Department of Labor, ILAB 457 16 Oct 2026"]) assert.ok(table.includes(w), w);
+    for (const w of ["UFLPA Entity List", "US Treasury, OFAC 9,990 8 Oct 2026", "UK Treasury, OFSI 1,286 6 Oct 2026", "EU sanctions map", "US Department of Labor, ILAB 457 16 Oct 2026"]) assert.ok(table.includes(w), w);
     assert.match(table, /UFLPA Entity List US Department of Homeland Security 253 Read in part, no full read yet/);
     assert.match(t, /Each list's entries and the day of its last full read, as the product holds them now\./);
     assert.equal((out.match(/<tbody[\s\S]*?<\/tbody>/)![0].match(/<tr>/g) ?? []).length, 6);

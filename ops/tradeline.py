@@ -16,9 +16,8 @@ save there on their own, and the server refuses to delete a row before its year 
 
 fetch: the founder's yeses first, then unchecked EPB suppliers in a fixed order; a supplier is never
 paid for twice. It keeps to 40 requests a minute (Volza allows 50 for the whole key) and waits out a
-429 for up to 15 minutes before stopping. Each run is a run of its own: running the same command again
-fetches up to N more new suppliers and may spend up to the cap again, on top of this day's results file
-(etl/raw/volza/launch_<date>.jsonl). What any run finished is never fetched again.
+429 for up to 15 minutes before stopping. Stopped or not, running the same command again resumes:
+N and the cap count this day's results file (etl/raw/volza/launch_<date>.jsonl).
 Unsure matches wait for the founder in `review`; a yes is fetched in the next `fetch`.
 """
 

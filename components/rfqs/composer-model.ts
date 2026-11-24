@@ -17,8 +17,7 @@ export type ComposerTarget = {
   place: string | null;
   type: string;
   sanctioned: boolean;
-  /** Someone has claimed this company on SourceBD: only then can it read an RFQ (`rfq_list`, `rfq_get`). */
-  claimed: boolean;
+  sanctionSample?: boolean;
 };
 
 /** What the composer starts with: the line a buyer arrived from, or one of their own products. */
@@ -126,8 +125,7 @@ export function neededWords(missing: string[]): string {
   return `Add ${listAnd(words)} to send.`;
 }
 
-/** `short`: at least one supplier listed cannot read the RFQ, so the footer says so in caution, not ink. */
-export type ComposerCopy = { sends: string; send: string; short?: boolean };
+export type ComposerCopy = { sends: string; send: string };
 
 /** The three facts the message signs with. Typed in the composer when the workspace lacks one; saved there on send. */
 export type FromYou = { name: string; company: string; website: string };
@@ -164,9 +162,8 @@ export function footerStatus(s: { error: string | null; sanctioned: number; miss
   if (s.error) return { text: s.error, tone: "danger", live: true };
   if (s.sanctioned > 0) return { text: "RFQs cannot be sent to a sanctioned supplier", tone: "sanction", live: s.attempted };
   if (s.attempted && s.missing.length > 0) return { text: neededWords([...s.missing]), tone: "caution", live: true };
-  const tone = s.words.short ? "caution" : "ink";
-  if (s.draftSavedAt) return { text: `Draft saved ${s.draftSavedAt}. ${s.words.sends}`, tone, live: true };
-  return { text: s.words.sends, tone, live: false };
+  if (s.draftSavedAt) return { text: `Draft saved ${s.draftSavedAt}. ${s.words.sends}`, tone: "ink", live: true };
+  return { text: s.words.sends, tone: "ink", live: false };
 }
 
 /**
@@ -184,15 +181,11 @@ export const sendDecision = (s: { blocked: boolean; missing: readonly string[]; 
  */
 export const confirmFirst = (targets: number): boolean => targets > LISTED_TARGETS;
 
-/** The review dialog's title and primary: "Done" while reviewing, the send itself while confirming. `reached`: how many can read it. */
-export function reviewWords(n: number, confirming: boolean, reached: number = n): { title: string; primary: string } {
+/** The review dialog's title and primary: "Done" while reviewing, the send itself while confirming. */
+export function reviewWords(n: number, confirming: boolean): { title: string; primary: string } {
   if (confirming) return { title: `Send this RFQ to ${n} suppliers?`, primary: `Send to ${n} suppliers` };
-  if (reached < n) return { title: `${n} ${n === 1 ? "supplier" : "suppliers"} on this RFQ, ${reached} on SourceBD`, primary: "Done" };
   return { title: `${n} ${n === 1 ? "supplier gets" : "suppliers get"} this RFQ`, primary: "Done" };
 }
-
-/** What one supplier's row says about whether it will get the RFQ: sanctioned, on SourceBD, or not yet. */
-export const reachWord = (t: Pick<ComposerTarget, "sanctioned" | "claimed">): string => (t.sanctioned ? "sanctioned" : t.claimed ? "on SourceBD, gets it" : "not on SourceBD yet, will not get it");
 
 /** A number field while not focused: 10000 → "10,000", 8.9 → "8.90"; what was typed while it is, or when it is not a number. */
 export function shownNumber(raw: string, focused: boolean, kind: "count" | "money"): string {
@@ -204,25 +197,15 @@ export function shownNumber(raw: string, focused: boolean, kind: "count" | "mone
 /** The message under one field once Send was tried and it is still empty; null before that. */
 export const fieldNote = (attempted: boolean, missing: readonly string[], field: string, words: string): string | null => (attempted && missing.includes(field) ? words : null);
 
-/**
- * "Sends to 1 supplier: Aboni Knitwear Ltd." and the Send button's own words. A supplier nobody has
- * claimed on SourceBD cannot read an RFQ, so the sentence says who will not get it rather than
- * promise a copy to everyone listed.
- */
-export function sendWords(targets: readonly Pick<ComposerTarget, "name" | "claimed">[]): ComposerCopy {
+/** "Sends to 1 supplier: Aboni Knitwear Ltd." and the Send button's own words. */
+export function sendWords(targets: readonly Pick<ComposerTarget, "name">[]): ComposerCopy {
   const n = targets.length;
   if (n === 0) return { sends: "Add a supplier to send this RFQ.", send: "Send RFQ" };
-  const away = targets.filter((t) => !t.claimed).length;
-  const stop = (name: string) => `${name}${name.endsWith(".") ? "" : "."}`;
   if (n === 1) {
     const name = targets[0]!.name;
-    if (away === 1) return { sends: `${name} is not on SourceBD yet, so it will not get this RFQ.`, send: "Send RFQ", short: true };
-    return { sends: `Sends to 1 supplier: ${stop(name)}`, send: "Send RFQ" };
+    return { sends: `Sends to 1 supplier: ${name}${name.endsWith(".") ? "" : "."}`, send: "Send RFQ" };
   }
-  const send = `Send to ${n} suppliers`;
-  if (away === n) return { sends: `None of these ${n} suppliers is on SourceBD yet, so none will get this RFQ.`, send, short: true };
-  if (away > 0) return { sends: `Reaches ${n - away} of ${n} suppliers. ${away} ${away === 1 ? "is" : "are"} not on SourceBD yet and will not get it.`, send, short: true };
-  return { sends: `Sends to ${n} suppliers.`, send };
+  return { sends: `Sends to ${n} suppliers.`, send: `Send to ${n} suppliers` };
 }
 
 /** "Aboni Knitwear Ltd., S M Knitwears Limited and 48 more". */

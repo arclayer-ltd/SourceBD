@@ -5,7 +5,7 @@ page would destroy typed fidelity:
 
 * JSON APIs (RSC/Accord, GOTS/GTB, Open Supply Hub)
 * POST APIs with bodies or CSRF tokens (EPB) and Power BI semantic queries (WRAP)
-* CSV (OFAC), XML (UK Sanctions List, EU FSD), XLSX (ILAB)
+* CSV (OFAC), XML (UK OFSI, EU FSD), XLSX (ILAB)
 * binary document downloads (RSC compliance docs)
 
 Transport behaviour is unchanged from the pre-Firecrawl pipeline: this wraps

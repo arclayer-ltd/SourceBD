@@ -10,7 +10,6 @@ import { renderToStaticMarkup } from "react-dom/server";
 
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { TARGET_COLUMNS, targetFromRow } from "@/lib/dashboard/composer-target";
 import { ReviewBody, RfqComposer } from "./composer";
 import {
   DEFAULT_QUESTIONS,
@@ -47,7 +46,6 @@ const target = (n: number, over: Partial<ComposerTarget> = {}): ComposerTarget =
   place: n % 2 ? "Savar, Dhaka" : "Gazipur",
   type: n % 20 === 0 ? "Buying house" : "Factory",
   sanctioned: false,
-  claimed: true,
   ...over,
 });
 const WORKSPACE = { companyName: "Karim Trading", userName: "Rezaul Karim", website: null, questions: [], emailTemplate: null };
@@ -57,54 +55,6 @@ const draw = (targets: ComposerTarget[], extra: Record<string, unknown> = {}) =>
       createElement(RfqComposer, { targets, workspace: WORKSPACE, closeHref: "/app/rfqs", mode: "page", backLabel: "Back to RFQs", ...extra } as never),
     ),
   );
-
-// Issue #641: only a supplier whose company is claimed on SourceBD can read an RFQ. The composer said
-// "Each supplier gets its own copy" to every buyer, though three companies of ten thousand are claimed.
-describe("whom the RFQ will reach", () => {
-  const away = (n: number) => target(n, { claimed: false });
-
-  it("says who will not get it, before Send, in caution rather than ink", () => {
-    assert.deepEqual(sendWords([away(1)]), { sends: "Aboni Knitwear Ltd. is not on SourceBD yet, so it will not get this RFQ.", send: "Send RFQ", short: true });
-    assert.deepEqual(sendWords([away(1), away(2), away(3)]), { sends: "None of these 3 suppliers is on SourceBD yet, so none will get this RFQ.", send: "Send to 3 suppliers", short: true });
-    assert.deepEqual(sendWords([target(1), away(2), away(3)]), { sends: "Reaches 1 of 3 suppliers. 2 are not on SourceBD yet and will not get it.", send: "Send to 3 suppliers", short: true });
-    assert.deepEqual(sendWords([target(1), away(2)]).sends, "Reaches 1 of 2 suppliers. 1 is not on SourceBD yet and will not get it.");
-    const words = sendWords([away(1)]);
-    assert.deepEqual(footerStatus({ error: null, sanctioned: 0, missing: [], attempted: false, draftSavedAt: null, words }), { text: words.sends, tone: "caution", live: false });
-    assert.equal(reviewWords(50, false, 12).title, "50 suppliers on this RFQ, 12 on SourceBD");
-    assert.equal(reviewWords(50, false, 50).title, "50 suppliers get this RFQ");
-  });
-
-  it("one supplier not on SourceBD: its row, the preview and the footer say it will not get the RFQ, and nothing promises it a copy", () => {
-    const out = draw([away(1)], { prefill: { title: "Hoodies", quantity: "10000" } });
-    assert.ok(out.includes("not on SourceBD yet, will not get it"));
-    assert.ok(out.includes("What Aboni Knitwear Ltd. would get on SourceBD"));
-    assert.ok(out.includes("Aboni Knitwear Ltd. is not on SourceBD yet, so it will not get this RFQ."));
-    assert.match(out, /<p class="text-caution">Aboni Knitwear Ltd\. is not on SourceBD yet/, "the warning is caution, and shown on a phone too");
-    assert.ok(out.includes("One not on SourceBD yet sees it only once it claims its company here."));
-    assert.ok(!out.includes("Each supplier gets its own copy."));
-    assert.ok(!out.includes("What Aboni Knitwear Ltd. gets"));
-    assert.ok(!out.includes("Sends to 1 supplier"));
-  });
-
-  it("fifty, twelve on SourceBD: the summary and the footer count the ones it will not reach, and Review all marks each", () => {
-    const targets = Array.from({ length: 50 }, (_, i) => target(i + 1, { claimed: i < 12 }));
-    const out = draw(targets);
-    assert.ok(out.includes("38 of them are not on SourceBD yet and will not get it. Review all to see which."));
-    assert.ok(out.includes("Reaches 12 of 50 suppliers. 38 are not on SourceBD yet and will not get it."));
-    assert.ok(out.includes("What each supplier on SourceBD gets"));
-    const review = plain(renderToStaticMarkup(createElement(ReviewBody, { targets: targets.slice(10, 14), onRemove: () => {} })));
-    assert.equal((review.match(/on SourceBD, gets it/g) ?? []).length, 2);
-    assert.equal((review.match(/not on SourceBD yet, will not get it/g) ?? []).length, 2);
-  });
-
-  it("a supplier read from the database is on SourceBD only when it says so", () => {
-    const row = { id: "a", slug: "a", company_name: "A Ltd" };
-    assert.equal(targetFromRow({ ...row, is_claimed: true }).claimed, true);
-    assert.equal(targetFromRow({ ...row, is_claimed: false }).claimed, false);
-    assert.equal(targetFromRow(row).claimed, false, "an unknown claim is not a delivery");
-    assert.ok(TARGET_COLUMNS.split(", ").includes("is_claimed") && !TARGET_COLUMNS.includes("claimed_by"));
-  });
-});
 
 describe("what the composer says", () => {
   it("names what is still missing as a sentence, in the order the form asks", () => {
@@ -184,7 +134,7 @@ describe("what the composer draws", () => {
     const out = draw([target(1)], { prefill: { title: "Men's heavyweight French terry hoodies, 420gsm", shipBy: "2026-10-15", shipTo: "United Kingdom", targetPrice: "8.9" } });
     assert.match(out, /^<section aria-label="New RFQ"/);
     assert.ok(out.includes("1 supplier · you can add up to 50"));
-    assert.ok(out.includes("Aboni Knitwear Ltd.") && out.includes("on SourceBD, gets it"));
+    assert.ok(out.includes("Aboni Knitwear Ltd.") && out.includes("contact details locked"));
     assert.ok(out.includes(">Add suppliers<"));
     assert.ok(out.includes('value="Men&#x27;s heavyweight') || out.includes("value=\"Men's heavyweight"));
     assert.ok(out.includes("What Aboni Knitwear Ltd. gets"));

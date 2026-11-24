@@ -237,7 +237,7 @@ def test_gha_remote_script_keeps_the_same_fetch_rewrites_as_the_helper() -> None
     assert r"^https?://([^/@]+@)?(www\.)?github\.com(\.|:443)?/" in remote
     assert r"github\.com(\.|:443)?" in helper
     assert r"github\.com(\.|:443)?" in remote
-    assert 'bash "$_deploy" --ref="${DEPLOY_REF}"' in remote
+    assert 'bash "$_deploy" --ref="${DEPLOY_REF}" --require-git' in remote
     assert "export REPO_DIR" in remote
     assert "mktemp" in remote
 

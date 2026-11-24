@@ -62,6 +62,7 @@ export async function loadRecordInput(
   supabase: RecordRpc,
   slug: string,
   today: Date,
+  sanctionSample = false,
 ): Promise<LoadedRecord | null> {
   try {
     const [profileResult, hsResult] = await Promise.all([
@@ -80,7 +81,7 @@ export async function loadRecordInput(
     const profile = data as ProfilePayload;
     // A failed lines read is carried as "unknown", never rendered as "no lines".
     const { hscodes, loadError } = hscodesFromRpc({ data: hsResult?.data, error: hsResult?.error });
-    return { slug, input: { profile, hscodes, hscodesError: loadError, workers: null, today } };
+    return { slug, input: { profile, hscodes, hscodesError: loadError, workers: null, today, sanctionSample } };
   } catch (err) {
     if (err instanceof ProfileReadTimeout) throw err;
     return null;

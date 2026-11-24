@@ -1,51 +1,25 @@
-// The page the claim email links to, with `?token=…`. It spends the token with the visitor's own
-// session (the middleware has already sent anyone signed out to sign in and back here) and says what
-// happened. It used to POST to /api/v1/claims from the server, without the visitor's cookies, so the
-// middleware answered "not authenticated" to every click (issue 643).
+// Verification consumer (Spec S1).
+//
+// The email link points here with `?token=…`. We hit the API route (so all
+// auth/anon semantics live in one place), then redirect to the claim
+// status page on success or render an error card on failure.
+
+import { headers } from "next/headers";
 
 import { ClaimStatusChip, ClaimSteps } from "@/components/claim/parts";
 import { ButtonLink, ErrorPanel } from "@/components/kit";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { AppOriginError, getCanonicalAppOrigin } from "@/lib/app-origin";
 
 export const dynamic = "force-dynamic";
-
-type Verified = {
-  ok?: boolean;
-  outcome?: "approved" | "pending_admin" | "invalid" | "expired" | "not_pending" | "supplier_taken";
-  claim_id?: string;
-  status?: string;
-};
-
-/** What each refusal from claim_verify_email means to the person holding the link. */
-type Refusal = { title: string; detail: string };
-
-const INVALID: Refusal = {
-  title: "This link does not work",
-  detail: "It may have been copied only in part, or replaced by a newer link. Open the latest claim email, or start the claim again.",
-};
-
-const REFUSED: Record<string, Refusal> = {
-  invalid: INVALID,
-  expired: {
-    title: "This link has expired",
-    detail: "Claim links work for 24 hours. Start the claim again and a new link is emailed.",
-  },
-  not_pending: {
-    title: "This link has already been used",
-    detail: "The claim has moved on since this email was sent. Its status is on your claims page.",
-  },
-  supplier_taken: {
-    title: "This company has already been claimed",
-    detail: "Someone else finished claiming it before you clicked. If that is wrong, tell us through the contact page.",
-  },
-};
 
 export default async function ClaimVerifyPage({
   searchParams,
 }: {
   searchParams: Promise<{ token?: string }>;
 }) {
-  const token = (await searchParams).token?.trim();
+  const sp = await searchParams;
+  const token = sp.token?.trim();
+
   if (!token) {
     return (
       <ErrorCard
@@ -55,16 +29,55 @@ export default async function ClaimVerifyPage({
     );
   }
 
-  const supabase = await createSupabaseServerClient();
-  const { data, error } = await supabase.rpc("claim_verify_email", { p_token: token });
-  if (error) {
-    return <ErrorCard title="Could not verify" detail="Something went wrong on our side. Try the link again in a minute." />;
+  const h = await headers();
+  let origin: string;
+  try {
+    origin = getCanonicalAppOrigin(h as unknown as Headers);
+  } catch (err) {
+    return (
+      <ErrorCard
+        title="Configuration error"
+        detail={
+          err instanceof AppOriginError
+            ? err.message
+            : "Unable to resolve the app origin."
+        }
+      />
+    );
   }
 
-  const result = (data ?? {}) as Verified;
+  let result: {
+    ok?: boolean;
+    error?: string;
+    detail?: string;
+    claim_id?: string;
+    outcome?: "approved" | "pending_admin";
+  } = {};
+  try {
+    const res = await fetch(`${origin}/api/v1/claims`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      cache: "no-store",
+      body: JSON.stringify({ action: "verify", token }),
+    });
+    result = (await res.json()) as typeof result;
+    if (!res.ok) result.ok = false;
+  } catch (e) {
+    return (
+      <ErrorCard
+        title="Could not verify"
+        detail={e instanceof Error ? e.message : String(e)}
+      />
+    );
+  }
+
   if (!result.ok) {
-    const refused = REFUSED[result.outcome ?? ""] ?? INVALID;
-    return <ErrorCard title={refused.title} detail={refused.detail} claimId={result.claim_id} />;
+    return (
+      <ErrorCard
+        title="Verification failed"
+        detail={result.detail ?? result.error ?? "Unknown error"}
+      />
+    );
   }
 
   const approved = result.outcome === "approved";
@@ -81,26 +94,31 @@ export default async function ClaimVerifyPage({
       </div>
       <p className="text-md text-ink-2">
         {approved
-          ? "Your email is at this company's own web domain, so the claim is approved. You now manage this company on SourceBD."
-          : "Thanks. Someone at SourceBD now checks that this email belongs to the company. The decision shows on your claim's page."}
+          ? "Your domain matched the company record. You now own this profile."
+          : "Thanks. An admin will review your request and notify you of the decision."}
       </p>
       <div>
-        <ButtonLink kind="primary" href={result.claim_id ? `/supplier/claim/${result.claim_id}` : "/supplier/claim"}>
-          {result.claim_id ? "View claim" : "Back to claims"}
-        </ButtonLink>
+        {result.claim_id ? (
+          <ButtonLink kind="primary" href={`/supplier/claim/${result.claim_id}`}>
+            View claim
+          </ButtonLink>
+        ) : (
+          <ButtonLink kind="primary" href="/supplier/claim">
+            Back to claims
+          </ButtonLink>
+        )}
       </div>
     </div>
   );
 }
 
-function ErrorCard({ title, detail, claimId }: { title: string; detail: string; claimId?: string }) {
-  const href = claimId ? `/supplier/claim/${claimId}` : "/supplier/claim";
+function ErrorCard({ title, detail }: { title: string; detail: string }) {
   return (
     <div className="mx-auto flex w-full max-w-[560px] flex-col gap-6">
       <header className="flex flex-col gap-1">
         <h1 className="text-2xl font-semibold tracking-tight text-ink">{title}</h1>
       </header>
-      <ErrorPanel title={detail} retry={<ButtonLink href={href}>{claimId ? "View claim" : "Back to claims"}</ButtonLink>} />
+      <ErrorPanel title={detail} retry={<ButtonLink href="/supplier/claim">Back to claims</ButtonLink>} />
     </div>
   );
 }

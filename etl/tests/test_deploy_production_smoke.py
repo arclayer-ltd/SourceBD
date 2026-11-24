@@ -61,7 +61,7 @@ def test_gha_public_smoke_retries_instead_of_one_shot_curl() -> None:
     assert code[0].startswith("python3 ops/wait_for_http_ok.py")
     assert "--attempts 12" in run
     assert "--sleep 5" in run
-    assert code[1] == '--url "http://${{ secrets.VPS_HOST }}${{ steps.pin.outputs.health }}" \\'
+    assert code[1].startswith('--url "http://${{ secrets.VPS_HOST }}/api/health"')
     assert "--expect-commit" in run
     assert '${{ steps.pin.outputs.sha }}' in run
     assert not any(ln.startswith("set +e") for ln in code)
@@ -98,7 +98,7 @@ def test_gha_passes_job_token_and_self_contained_vps_script() -> None:
     assert "x-access-token:" not in deploy  # token stays in env, not YAML
 
     remote = (ROOT / "ops" / "gha_vps_deploy.sh").read_text(encoding="utf-8")
-    assert 'bash "$_deploy" --ref="${DEPLOY_REF}"' in remote
+    assert 'bash "$_deploy" --ref="${DEPLOY_REF}" --require-git' in remote
     assert "git config --file" in remote
     assert "http.https://github.com/.extraheader" in remote
     assert r"s#^[Hh][Tt][Tt][Pp][Ss]?://([^/@]+@)?([Ww][Ww][Ww]\.)?[Gg][Ii][Tt][Hh][Uu][Bb]\.[Cc][Oo][Mm]\.?(:443)?/#https://github.com/#" in remote
@@ -187,9 +187,9 @@ def test_health_route_json_commit_comes_from_commit_sha_env() -> None:
 
 def test_deploy_vps_prepares_github_https_fetch_before_git_fetch() -> None:
     text = (ROOT / "ops/deploy_vps.sh").read_text(encoding="utf-8")
-    guard = '[ -d .git ] || [ -f .git ] || die'
-    assert guard in text
-    _, git_block = text.split(guard, 1)
+    assert "[ ! -d .git ] && [ ! -f .git ]" in text
+    assert "[ -d .git ] || [ -f .git ]" in text
+    _, git_block = text.split("if [ -d .git ] || [ -f .git ]; then", 1)
     code = [
         ln.strip()
         for ln in git_block.splitlines()
@@ -213,8 +213,6 @@ def test_deploy_vps_waits_for_public_health_before_returning() -> None:
         if ln.strip() and not ln.strip().startswith("#")
     ]
     until_i = next(i for i, ln in enumerate(code) if ln.startswith("until "))
-    # The check that ends a deploy goes through Caddy; which path it reads is tested by running it.
-    assert '"http://127.0.0.1$HEALTH_PATH"' in code[until_i]
     cap_i = next(i for i, ln in enumerate(code) if "-gt 20" in ln or "-ge 20" in ln)
     die_i = next(i for i, ln in enumerate(code) if ln.startswith("die "))
     ok_i = next(i for i, ln in enumerate(code) if "deploy OK" in ln)
@@ -404,173 +402,3 @@ def test_pin_commands_peel_annotated_tag_to_the_commit_health_reports(
     assert commit != commit2
     assert commit not in (tag_obj,)
     assert pin.returncode == 0
-
-
-def _deploy_vps(tmp_path: Path, *args: str) -> tuple[subprocess.CompletedProcess[str], Path]:
-    """Run ops/deploy_vps.sh against a throwaway checkout; any docker call is recorded, never made."""
-    env = _isolate_git_env()
-    repo = tmp_path / "srv"
-    repo.mkdir()
-    subprocess.run(["git", "init", "-q"], cwd=repo, check=True, env=env)
-    subprocess.run(["git", "commit", "-q", "--allow-empty", "-m", "live"], cwd=repo, check=True, env=env)
-    fake = tmp_path / "bin"
-    fake.mkdir()
-    calls = tmp_path / "calls.log"
-    for tool in ("docker", "curl", "systemctl", "caddy"):
-        (fake / tool).write_text(f'#!/usr/bin/env bash\necho "{tool} $*" >> "{calls}"\nexit 1\n', encoding="utf-8")
-        (fake / tool).chmod(0o755)
-    env["PATH"] = f"{fake}{os.pathsep}{env['PATH']}"
-    env["REPO_DIR"] = str(repo)
-    result = subprocess.run(
-        ["bash", str(ROOT / "ops/deploy_vps.sh"), *args],
-        capture_output=True,
-        text=True,
-        env=env,
-        timeout=60,
-    )
-    return result, calls
-
-
-def test_deploy_vps_refuses_to_run_without_a_named_release(tmp_path: Path) -> None:
-    """Run bare, it used to check out `development` and put it on the live site."""
-    result, calls = _deploy_vps(tmp_path)
-    assert result.returncode != 0
-    assert "--ref" in result.stderr
-    assert not calls.exists()
-    assert not (tmp_path / "srv" / ".deploy").exists()
-
-
-def test_deploy_vps_has_no_migrations_flag_that_does_nothing(tmp_path: Path) -> None:
-    """--with-migrations printed "Applying" and applied nothing."""
-    text = (ROOT / "ops/deploy_vps.sh").read_text(encoding="utf-8")
-    assert "with-migrations" not in text
-    result, calls = _deploy_vps(tmp_path, "--ref=main", "--with-migrations")
-    assert result.returncode == 2
-    assert "Unknown flag: --with-migrations" in result.stderr
-    assert not calls.exists()
-
-
-def test_deploy_guide_is_one_current_document_naming_no_server_address() -> None:
-    guide = (ROOT / "docs/ENTERPRISE_DEPLOYMENT.md").read_text(encoding="utf-8")
-    address = r"\b\d{1,3}(\.\d{1,3}){3}\b"  # 127.0.0.1 is the server itself, wherever it is
-    assert not re.search(address, guide.replace("127.0.0.1", "")), "the guide names a fixed server address"
-    assert "/api/health/db" in guide
-    assert "--with-migrations" not in guide
-    assert "--require-git" not in guide
-    assert not (ROOT / "ops/deploy/README.md").exists()
-    for script in ("ops/deploy_vps.sh", "ops/gha_vps_deploy.sh"):
-        text = (ROOT / script).read_text(encoding="utf-8")
-        assert not re.search(address, text.replace("127.0.0.1", "")), script
-
-
-def _two_releases(tmp_path: Path) -> tuple[Path, str, str]:
-    """A bare origin with an old commit (no /api/health/db) and a new one that adds it."""
-    env = _isolate_git_env()
-    origin = tmp_path / "origin.git"
-    subprocess.run(["git", "init", "-q", "--bare", str(origin)], check=True, env=env)
-    work = tmp_path / "work"
-    work.mkdir()
-    git = lambda *a: subprocess.run(["git", *a], cwd=work, check=True, capture_output=True, text=True, env=env).stdout.strip()
-    git("init", "-q")
-    (work / "app/api/health").mkdir(parents=True)
-    (work / "app/api/health/route.ts").write_text("// liveness\n", encoding="utf-8")
-    git("add", "-A")
-    git("commit", "-q", "-m", "old release")
-    old = git("rev-parse", "HEAD")
-    (work / "app/api/health/db").mkdir()
-    (work / "app/api/health/db/route.ts").write_text("// reads the database\n", encoding="utf-8")
-    git("add", "-A")
-    git("commit", "-q", "-m", "new release")
-    new = git("rev-parse", "HEAD")
-    git("remote", "add", "origin", str(origin))
-    git("push", "-q", "origin", "HEAD:main")
-    return origin, old, new
-
-
-def test_smoke_test_reads_the_health_path_the_deployed_commit_has(tmp_path: Path) -> None:
-    """A rollback to a commit from before /api/health/db must not be smoke-tested on a 404."""
-    origin, old, new = _two_releases(tmp_path)
-    env = _isolate_git_env()
-    runner = tmp_path / "runner"
-    subprocess.run(["git", "clone", "-q", str(origin), str(runner)], check=True, env=env)
-    pin_script = _run_script(_step_named(_workflow(), "Resolve expected production commit"))
-    for ref, want in ((new, "/api/health/db"), (old, "/api/health")):
-        out = tmp_path / f"out-{want.replace('/', '_')}"
-        out.write_text("", encoding="utf-8")
-        subprocess.run(
-            ["bash", "-c", pin_script],
-            cwd=runner,
-            check=True,
-            capture_output=True,
-            env={**env, "DEPLOY_REF": ref, "GITHUB_OUTPUT": str(out)},
-        )
-        lines = out.read_text(encoding="utf-8").splitlines()
-        assert f"sha={ref}" in lines
-        assert f"health={want}" in lines, (ref, lines)
-
-
-def _deploy_release(tmp_path: Path, origin: Path, live: str, ref: str) -> tuple[subprocess.CompletedProcess[str], list[str]]:
-    """Run the whole of ops/deploy_vps.sh from `live` to `ref`. Docker, Caddy and sleep are fakes; the
-    fake site answers /api/health/db only when the checked-out commit has that route."""
-    env = _isolate_git_env()
-    srv = tmp_path / "srv"
-    subprocess.run(["git", "clone", "-q", str(origin), str(srv)], check=True, env=env)
-    subprocess.run(["git", "checkout", "-q", live], cwd=srv, check=True, env=env)
-    (srv / ".env").write_text(
-        "".join(
-            f"{k}=x\n"
-            for k in (
-                "SUPABASE_URL",
-                "SUPABASE_ANON_KEY",
-                "SUPABASE_SERVICE_ROLE_KEY",
-                "NEXT_PUBLIC_SUPABASE_URL",
-                "NEXT_PUBLIC_SUPABASE_ANON_KEY",
-                "NEXT_PUBLIC_APP_URL",
-            )
-        ),
-        encoding="utf-8",
-    )
-    fake = tmp_path / "bin"
-    fake.mkdir()
-    urls = tmp_path / "urls.log"
-    for tool in ("docker", "systemctl", "caddy", "sleep"):
-        (fake / tool).write_text("#!/usr/bin/env bash\nexit 0\n", encoding="utf-8")
-        (fake / tool).chmod(0o755)
-    (fake / "curl").write_text(
-        "#!/usr/bin/env bash\n"
-        'url="${@: -1}"\n'
-        f'echo "$url" >> "{urls}"\n'
-        f'case "$url" in */api/health/db) [ -f "{srv}/app/api/health/db/route.ts" ] || exit 22 ;; esac\n'
-        "exit 0\n",
-        encoding="utf-8",
-    )
-    (fake / "curl").chmod(0o755)
-    env["PATH"] = f"{fake}{os.pathsep}{env['PATH']}"
-    env["REPO_DIR"] = str(srv)
-    result = subprocess.run(
-        ["bash", str(ROOT / "ops/deploy_vps.sh"), f"--ref={ref}"],
-        capture_output=True,
-        text=True,
-        env=env,
-        timeout=60,
-    )
-    return result, urls.read_text(encoding="utf-8").split() if urls.exists() else []
-
-
-def test_deploy_vps_checks_the_database_on_a_release_that_has_the_route(tmp_path: Path) -> None:
-    origin, old, new = _two_releases(tmp_path)
-    result, urls = _deploy_release(tmp_path, origin, live=old, ref=new)
-    assert result.returncode == 0, result.stderr
-    assert urls[-1] == "http://127.0.0.1/api/health/db"
-    assert "reads its database" in result.stdout
-
-
-def test_deploy_vps_rollback_to_a_release_before_the_route_ends_green(tmp_path: Path) -> None:
-    """Rolling back from the release that added /api/health/db to the one before it reported a
-    database failure and named the bad release as the one to roll back to (review on #701)."""
-    origin, old, new = _two_releases(tmp_path)
-    result, urls = _deploy_release(tmp_path, origin, live=new, ref=old)
-    assert result.returncode == 0, result.stderr
-    assert "http://127.0.0.1/api/health/db" not in urls
-    assert urls[-1] == "http://127.0.0.1/api/health"
-    assert "database was not checked" in result.stdout

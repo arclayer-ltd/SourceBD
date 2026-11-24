@@ -9,8 +9,7 @@
 //
 // Product truth: the server refuses a sanctioned or an unpublished target (`rfq_create`), so the
 // composer withholds Send for a sanctioned one and says why. No contact value reaches this
-// component; the supplier is written to inside SourceBD, so only one whose company is claimed here can
-// read it, and each row and the footer say which will not get it. A supplier sees the buyer's target price
+// component; the supplier is written to inside SourceBD. A supplier sees the buyer's target price
 // (the RFQ carries it), so the form says so instead of offering a switch the product cannot keep;
 // nothing here attaches a file, because no file is stored.
 
@@ -44,7 +43,6 @@ import {
   listAnd,
   missingFields,
   needsFromYou,
-  reachWord,
   refusalWords,
   reviewWords,
   sendDecision,
@@ -117,7 +115,6 @@ function Targets({
   note: string | null;
 }) {
   const listed = targets.length > 0 && targets.length <= LISTED_TARGETS;
-  const away = targets.filter((t) => !t.claimed && !t.sanctioned).length;
   const places = [...new Set(targets.map((t) => t.place).filter((p): p is string => Boolean(p)))].slice(0, 4);
   const first = targets[0];
   const initials = first ? splitQualifier(first.name).base.split(/\s+/).slice(0, 2).map((w) => w.charAt(0).toUpperCase()).join("") : "";
@@ -168,7 +165,7 @@ function Targets({
                   {splitQualifier(t.name).base}
                 </span>
                 <span data-name="" className={cn(oneLine, "text-xs text-ink-3 max-sm:text-sm")} title={nameSecondLine(t.name, t.type, t.place)}>
-                  {[nameSecondLine(t.name, t.type, t.place), reachWord(t)].filter(Boolean).join(" · ")}
+                  {[nameSecondLine(t.name, t.type, t.place), t.sanctioned ? "sanctioned" : "contact details locked"].filter(Boolean).join(" · ")}
                 </span>
               </div>
               {targets.length > 1 || t.sanctioned ? (
@@ -194,11 +191,6 @@ function Targets({
           <div className="flex min-w-0 flex-1 flex-col gap-0.5">
             <p className="text-base font-medium text-ink">{targetSummary(targets)}</p>
             <p className="text-sm text-ink-3">{[typeCounts(targets), places.length ? `in ${listAnd(places)}` : null].filter(Boolean).join(" · ")}</p>
-            {away > 0 ? (
-              <p className="text-sm font-medium text-caution">
-                {away === targets.length ? "None of them is" : `${away} of them ${away === 1 ? "is" : "are"}`} not on SourceBD yet and will not get it. Review all to see which.
-              </p>
-            ) : null}
           </div>
           <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
             <Button kind="secondary" onClick={onReview} className="max-sm:h-input-touch max-sm:text-md">
@@ -250,7 +242,7 @@ export function ReviewBody({
               <span data-name="" title={t.name} className={cn(oneLine, "text-base font-medium text-ink")}>
                 {splitQualifier(t.name).base}
               </span>
-              <span data-name="" className={cn(oneLine, "text-xs text-ink-3")}>{[nameSecondLine(t.name, t.type, t.place), reachWord(t)].filter(Boolean).join(" · ")}</span>
+              <span data-name="" className={cn(oneLine, "text-xs text-ink-3")}>{[nameSecondLine(t.name, t.type, t.place), t.sanctioned ? "sanctioned" : null].filter(Boolean).join(" · ")}</span>
             </span>
             <Button kind="quiet" onClick={() => onRemove(t)} aria-label={`Remove ${t.name}`}>
               Remove
@@ -279,7 +271,7 @@ function ReviewAll({
 }) {
   const [q, setQ] = useState("");
   const [byName, setByName] = useState(false);
-  const words = reviewWords(targets.length, Boolean(onConfirm), targets.filter((t) => t.claimed).length);
+  const words = reviewWords(targets.length, Boolean(onConfirm));
   return (
     <Dialog
       open={open}
@@ -497,9 +489,6 @@ export function RfqComposer({
   const fromYouField = (key: keyof typeof fromYou) => (e: React.ChangeEvent<HTMLInputElement>) => setFromYou((f) => ({ ...f, [key]: e.target.value }));
   const Heading = page ? "h1" : "h2";
   const single = targets.length === 1 ? targets[0]!.name : null;
-  // Only a supplier claimed on SourceBD can read an RFQ: the preview and the lock line promise a copy to no one else.
-  const allClaimed = targets.every((t) => t.claimed);
-  const previewTitle = single ? (allClaimed ? `What ${single} gets` : `What ${single} would get on SourceBD`) : allClaimed ? "What each supplier gets" : "What each supplier on SourceBD gets";
 
   const root = (children: React.ReactNode) =>
     page ? (
@@ -706,7 +695,7 @@ export function RfqComposer({
           style={page ? ({ "--pane-w": `${side.width}px` } as CSSProperties) : undefined}
           className={cn("relative flex flex-col gap-3 border-t border-line bg-subtle px-4 py-5 sm:px-6", part !== "message" && "max-sm:hidden", page ? "xl:w-[var(--pane-w)] xl:min-w-[320px] xl:max-w-[calc(100%-480px)] xl:shrink-0 xl:overflow-y-auto xl:border-t-0" : "")}
         >
-          <h2 className="text-md font-semibold text-ink">{previewTitle}</h2>
+          <h2 className="text-md font-semibold text-ink">{single ? `What ${single} gets` : "What each supplier gets"}</h2>
           <div className="flex flex-col gap-3 rounded-lg bg-surface p-4">
             <p className="text-xs text-ink-3">RFQ from {workspace?.userName ?? "you"}, on SourceBD</p>
             <p className="text-base font-semibold text-ink [overflow-wrap:anywhere]">{title.trim() || "[product]"}</p>
@@ -767,7 +756,7 @@ export function RfqComposer({
           ) : null}
           <p className="flex items-start gap-2 text-sm text-ink-3">
             <LockSimple size={16} className="mt-0.5 shrink-0" aria-hidden />
-            {allClaimed ? "Each supplier gets its own copy." : "Each supplier on SourceBD gets its own copy. One not on SourceBD yet sees it only once it claims its company here."} No supplier sees who else you asked.
+            Each supplier gets its own copy. No supplier sees who else you asked.
           </p>
         </aside>
       </div>
@@ -793,7 +782,7 @@ export function RfqComposer({
             <span className="text-xs font-medium opacity-85 max-sm:hidden">{apple ? "⌘↵" : "Ctrl ↵"}</span>
           </Button>
           <span id={`${id}-send-hint`} className="sr-only">
-            {sanctioned.length > 0 ? "Remove the sanctioned supplier to send." : words.sends} {apple ? "Command" : "Control"} plus Enter also sends.
+            {sanctioned.length > 0 ? "Remove the sanctioned supplier to send." : "Sends to every supplier listed."} {apple ? "Command" : "Control"} plus Enter also sends.
           </span>
         </div>
       </div>

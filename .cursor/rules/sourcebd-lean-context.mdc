@@ -1,0 +1,24 @@
+---
+description: Use SourceBD's lean context boot instead of loading the full archive
+alwaysApply: true
+---
+
+# SourceBD Lean Context Boot
+
+Read these once per session, in this order, and never again in the session:
+
+1. `AGENTS.md`
+2. `context/agent-brief.md`
+3. `context/current-state.md` (cap 16 KB)
+4. `context/feature-specs/active.md` (cap 6 KB)
+
+Then only the task-relevant source of truth named in `AGENTS.md` rule 3.
+
+`context/archive/*` and inactive `context/feature-specs/*` are never read
+whole: grep for the heading, read that section. Same for any file over
+~10 KB you did not write this session.
+
+Do not re-read a boot file after editing it. Do not edit `AGENTS.md` or
+`agent-brief.md` mid-session.
+
+For small edits, read the affected code and narrow context sections only.

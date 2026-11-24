@@ -3,7 +3,8 @@
 # abort the script silently.
 set -uo pipefail
 
-# Scheduled by ops/schedule.cron, every minute.
+# Run from the SourceBD VPS cron, for example:
+# * * * * * /opt/sourcebd/ops/scraper_queue_cron.sh >> /opt/sourcebd/etl/logs/scraper_queue_cron.log 2>&1
 
 APP_DIR="${SOURCEBD_APP_DIR:-/opt/sourcebd}"
 

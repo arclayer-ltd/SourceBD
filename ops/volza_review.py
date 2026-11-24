@@ -50,18 +50,11 @@ def decide(sid: str, choice: str, name: str) -> None:
     REVIEW.write_text(json.dumps(d, ensure_ascii=False, indent=1), encoding="utf-8")
 
 
-def newest(files: list[Path] | None = None) -> dict[str, dict[str, Any]]:
-    """The newest complete row of every supplier fetched so far, by when it was fetched.
-
-    Not by file name: launch_recheck_* sorts after every dated file, so its row hid a yes fetched after it
-    and that supplier was paid for again on every fetch (#669). Rows fetched at the same time, or with no
-    time (the oldest files), keep file order: the later file wins.
-    """
-    if files is None:
-        files = [RAW / f for f in ("live_sample.jsonl", "batch_1.jsonl", "refetch_1.jsonl")]
-        files += sorted(RAW.glob("launch_*.jsonl"))
-    rows = [r for f in files if f.exists() for r in load(f) if not r.get("partial")]
-    return {r["id"]: r for r in sorted(rows, key=lambda r: r.get("fetched_at") or "")}
+def newest() -> dict[str, dict[str, Any]]:
+    """The newest complete row of every supplier fetched so far (later files win)."""
+    files = [RAW / f for f in ("live_sample.jsonl", "batch_1.jsonl", "refetch_1.jsonl")]
+    files += sorted(RAW.glob("launch_*.jsonl"))
+    return {r["id"]: r for f in files if f.exists() for r in load(f) if not r.get("partial")}
 
 
 def name_search(r: dict[str, Any]) -> list[Any] | None:

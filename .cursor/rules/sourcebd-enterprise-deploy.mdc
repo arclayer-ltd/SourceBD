@@ -1,0 +1,62 @@
+---
+description: SourceBD enterprise deployment — read before any VPS deploy, git push to production, or release
+alwaysApply: false
+---
+
+# SourceBD Enterprise Deploy Rules
+
+When the user says **"deploy using the SourceBD deploy rules"** (or asks to deploy to production/VPS), follow this rule and read **`docs/ENTERPRISE_DEPLOYMENT.md`** in full before taking any deploy action.
+
+## Mandatory preflight
+
+1. Read `docs/ENTERPRISE_DEPLOYMENT.md`.
+2. Confirm target VPS is **`109.104.153.228`** only — **never** `37.49.227.151`.
+3. Confirm the CI run on the exact SHA is green: `gh run list --commit <sha> --workflow CI`. Do not run tsc, lint or build locally; the CI run is the evidence.
+4. Confirm deploy ref is a **clean GitHub branch/tag/SHA** — not local dirty tree.
+5. Confirm deploy **scope** matches intended change (see scoped file lists in `ops/deploy/scopes/` when tree is contaminated).
+6. The founder confirms a deploy by approving the run in the GitHub `production` environment. Never trigger or approve it yourself; never `gh workflow run`.
+
+## Forbidden actions
+
+- **Never** deploy from auto-detected dirty working tree (`deploy-quick.ps1` default mode).
+- **Never** deploy unrelated uncommitted changes mixed with the requested feature.
+- **Never** overwrite `/opt/sourcebd/.env` or ship local `.env` to VPS.
+- **Never** use `rsync --delete` on production without explicit user approval.
+- **Never** force-push to `main` or `development`.
+- **Never** commit or push secrets, `.env`, DB dumps, or SSH private keys.
+- **Never** delete persistent VPS paths: `.env`, `etl/raw`, `etl/parsed`, `etl/logs`, `.deploy/`.
+- **Never** run production deploy scripts against any IP other than `109.104.153.228`.
+
+## Approved production path
+
+1. Land the work on `development` by PR with `gh pr merge --auto --squash`; the required checks merge it.
+2. Open `development` → `main` and run `gh pr merge --auto --merge` (merge commit, never squash).
+3. A green CI run on `main` starts **Deploy Production**, which waits for the founder's approval in the
+   GitHub `production` environment, then SSHes to the VPS and runs
+   `ops/deploy_vps.sh --ref=<sha> --require-git`. A manual run (Actions → Deploy Production →
+   Run workflow with a tag or SHA) waits for the same approval.
+4. Legacy scripts require explicit flags and are **not** for production:
+   - `ops/deploy-quick.ps1` → `-AllowLegacyHotfix` + explicit file paths only
+   - `ops/deploy-vps.ps1` → `-AllowLegacyTarballDeploy` (bootstrap/migration only)
+
+## Backup and rollback
+
+Before production deploy, ensure `ops/deploy_vps.sh` runs (records `.deploy/previous-sha` and Docker rollback tag).
+
+After deploy, produce a **deploy summary** with:
+
+- Deployed SHA/tag
+- Previous SHA (rollback ref from `.deploy/previous-sha`)
+- Files/scope deployed
+- Backup status
+- Smoke test results (`/api/health`, relevant pages)
+- Exact rollback command
+
+If smoke fails → rollback immediately:
+```bash
+bash ops/deploy_vps.sh --ref=$(cat /opt/sourcebd/.deploy/previous-sha) --require-git
+```
+
+## Emergency stop
+
+Stop and ask the user if: wrong VPS IP, dirty tree deploy requested, `.env` overwrite risk, CI failures, unrelated files in scope, or health check failure after deploy.

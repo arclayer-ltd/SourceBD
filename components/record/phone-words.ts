@@ -272,7 +272,7 @@ const LISTS: { code: string; label: string; daily: boolean }[] = [
   { code: "ofac_sdn", label: "US Treasury (OFAC)", daily: true },
   { code: "ilab_tvpra", label: "US Labor (ILAB)", daily: false },
   { code: "eu_sanctions", label: "European Union", daily: true },
-  { code: "uk_ofsi", label: "UK Sanctions List", daily: true },
+  { code: "uk_ofsi", label: "UK (OFSI)", daily: true },
   { code: "us_wro", label: "US withhold orders (WRO)", daily: false },
 ];
 

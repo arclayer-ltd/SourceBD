@@ -63,6 +63,8 @@ export type SupplierCardModel = {
   marks: SourceMarkModel[];
   meta: FactWithMark[];
   sanctioned: boolean;
+  /** Only the /dev/ds gallery sets this: a labelled sample, not a production flag. */
+  sanctionSample?: boolean;
   /** Every status chip, in order; the card draws four and says "+N" for the rest, naming them on hover. */
   chips: HighlightChip[];
   /**
@@ -129,6 +131,7 @@ export type TableRowModel = {
   /** A company with buildings: the range printed in place of every figure above ("800–1,150"). */
   workersRange?: string | null;
   sanctioned: boolean;
+  sanctionSample?: boolean;
   selected?: boolean;
   saved?: boolean;
   supplierId?: string;
@@ -283,6 +286,7 @@ export type SupplierSheetModel = {
   readDate: string | null;
   sourceCount: number;
   sanctioned: boolean;
+  sanctionSample?: boolean;
   /** `href` is null for a tab whose section the sheet does not render yet: the link is inert, never a dead fragment. */
   tabs: { label: string; count: string | null; href: string | null; active?: boolean }[];
   summary: string | null;
@@ -424,6 +428,7 @@ export type SupplierSheetModel = {
 export type ProductSheetModel = {
   supplierName: string;
   sanctioned: boolean;
+  sanctionSample?: boolean;
   hs: string;
   /** The record's own EPB page carries this line. False → the sheet never calls it an EPB export line. */
   exported: boolean;
@@ -468,6 +473,7 @@ export type RfqRowModel = {
   supplierCount: number;
   /** A sanctioned target shows on this row too — a sanction may not be hidden by layout (spec §2). */
   sanctioned: boolean;
+  sanctionSample?: boolean;
   quantity: string;
   status: { tone: "positive" | "caution" | "type"; label: string; icon?: IconName };
   sent: string | null;

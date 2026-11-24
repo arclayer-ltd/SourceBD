@@ -14,7 +14,7 @@ import { createElement, type ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
 import { AcceptBody, acceptNext, postAccept } from "./accept";
-import { CHART_TARGET_AT, detailModel, otherRfqLine, quoteChart, reachWords, type RfqDoc } from "./doc";
+import { CHART_TARGET_AT, detailModel, otherRfqLine, quoteChart, type RfqDoc } from "./doc";
 import { RfqDetail } from "./detail";
 import { RFQ_EMPTY_PHONE, RfqPhoneRows } from "./list";
 import { RfqTable } from "./table";
@@ -299,9 +299,9 @@ const doc = (over: Partial<RfqDoc> = {}): RfqDoc => ({
   updated_at: "2026-07-18T10:00:00Z",
   viewer_role: "buyer",
   targets: [
-    { id: "s-aboni", slug: "aboni-knitwear", company_name: "Aboni Knitwear Ltd.", entity_type: "factory", city: "Savar", district: "Dhaka" , is_claimed: true },
-    { id: "s-sm", slug: "sm-knitwears", company_name: "S M Knitwears Limited", entity_type: "factory", city: "Gazipur", district: null , is_claimed: true },
-    { id: "s-thermax", slug: "thermax", company_name: "Thermax Woven Dyeing Ltd.", entity_type: "factory", city: "Narsingdi", district: null , is_claimed: true },
+    { id: "s-aboni", slug: "aboni-knitwear", company_name: "Aboni Knitwear Ltd.", entity_type: "factory", city: "Savar", district: "Dhaka" },
+    { id: "s-sm", slug: "sm-knitwears", company_name: "S M Knitwears Limited", entity_type: "factory", city: "Gazipur", district: null },
+    { id: "s-thermax", slug: "thermax", company_name: "Thermax Woven Dyeing Ltd.", entity_type: "factory", city: "Narsingdi", district: null },
   ],
   quotes: [
     { id: "q-sm", supplier_id: "s-sm", supplier_slug: "sm-knitwears", supplier_name: "S M Knitwears Limited", supplier_entity_type: "factory", unit_price: 9.3, currency: "USD", lead_time_days: 75, moq: 12000, valid_until: "2026-10-25", notes: null, status: "submitted", created_at: "2026-07-20T10:00:00Z", updated_at: "2026-07-20T10:00:00Z" },
@@ -365,48 +365,6 @@ describe("the detail model", () => {
 
   it("other RFQs as a line", () => {
     assert.equal(otherRfqLine({ ...ROWS[1]!, product_title: "Hoodies" }), "Hoodies, 4,500 pieces · waiting for quotes · sent 1 Oct 2026");
-  });
-});
-
-// Issue #641: an RFQ reaches only a supplier whose company is claimed on SourceBD. The page said
-// "each on their own", "Each got its own copy" and "No reply yet" for suppliers that never saw it.
-describe("whom the RFQ reached", () => {
-  const away = (ids: string[]) => doc().targets.map((t) => (ids.includes(t.id) ? { ...t, is_claimed: false } : t));
-
-  it("says in words whom it did not reach, and nothing extra when it reached everyone", () => {
-    assert.equal(reachWords(3, 0), null);
-    assert.equal(reachWords(1, 1), "not received: the supplier is not on SourceBD yet");
-    assert.equal(reachWords(3, 3), "not received: none of the 3 suppliers is on SourceBD yet");
-    assert.equal(reachWords(3, 1), "reached 2 of 3 suppliers; 1 is not on SourceBD yet");
-    assert.equal(reachWords(50, 38), "reached 12 of 50 suppliers; 38 are not on SourceBD yet");
-  });
-
-  it("a supplier not on SourceBD is not waited on for a reply, and the header says it was not reached", () => {
-    const m = detailModel(doc({ targets: away(["s-thermax"]) }), TODAY);
-    assert.equal(m.sentLine, "Sent 18 Jul 2026 · reached 2 of 3 suppliers; 1 is not on SourceBD yet");
-    assert.equal(m.sentLinePane, "Sent 18 Jul 2026 · reached 2 of 3 suppliers; 1 is not on SourceBD yet · to the United Kingdom");
-    assert.equal(m.notReplied, "1 has not received it");
-    assert.deepEqual(m.noReply.map((n) => [n.supplier, n.reached]), [["Thermax Woven Dyeing Ltd.", false]]);
-    assert.equal(quoteChart(doc({ targets: away(["s-thermax"]) }))!.rows.at(-1)!.reached, false);
-  });
-
-  it("the RFQ page names each supplier it did not reach and claims no copy, no reply-wait and no delivery for it", () => {
-    const html = plain(render(createElement(RfqDetail, { rfq: doc({ targets: away(["s-thermax"]) }), mode: "page", today: TODAY, closeHref: "/app/rfqs" })));
-    assert.ok(html.includes("Sent 18 Jul 2026 · reached 2 of 3 suppliers; 1 is not on SourceBD yet"));
-    assert.ok(html.includes("Not on SourceBD yet · has not received this RFQ"));
-    assert.ok(html.includes("not on SourceBD yet, has not received it"), "the Sent to list marks the supplier");
-    assert.ok(html.includes("Not received"), "the phone's chart row");
-    assert.ok(html.includes("One not on SourceBD yet sees this RFQ only once it claims its company here."));
-    assert.ok(!html.includes("No reply yet"), "a supplier that never saw the RFQ is not one that has not replied");
-    assert.ok(!html.includes("each on their own") && !html.includes("Each got its own copy."));
-  });
-
-  it("an RFQ that reached nobody says so on the page", () => {
-    const html = plain(render(createElement(RfqDetail, { rfq: doc({ targets: away(["s-aboni", "s-sm", "s-thermax"]), quotes: [] }), mode: "page", today: TODAY, closeHref: "/app/rfqs" })));
-    assert.ok(html.includes("Sent 18 Jul 2026 · not received: none of the 3 suppliers is on SourceBD yet"));
-    assert.ok(html.includes("3 have not received it"));
-    assert.equal((html.match(/Not on SourceBD yet · has not received this RFQ/g) ?? []).length > 0, true);
-    assert.ok(!html.includes("No reply yet") && !html.includes("not replied"));
   });
 });
 
