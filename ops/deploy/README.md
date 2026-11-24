@@ -36,8 +36,6 @@ bash ops/deploy_vps.sh --ref=main --require-git
 curl -sf http://127.0.0.1:3000/api/health
 ```
 
-Legacy laptop scripts (`deploy-quick.ps1`, `deploy-vps.ps1`) are **blocked for production** unless explicit legacy flags are passed — see enterprise runbook.
-
 ## Env contract
 
 Every var from `.env.example` is mapped here to its production source.

@@ -116,13 +116,6 @@ bash ops/deploy_vps.sh --ref=v2026.06.30-1 --require-git
 # or: bash ops/deploy_vps.sh --ref=main --require-git
 ```
 
-### Deprecated for production (guarded)
-
-| Script | Why deprecated | Escape hatch |
-|--------|----------------|--------------|
-| `ops/deploy-quick.ps1` | Ships local dirty/auto-detected files | `-AllowLegacyHotfix` + explicit file list only |
-| `ops/deploy-vps.ps1` | Tarball from laptop; historically included local `.env` | `-AllowLegacyTarballDeploy` (bootstrap/migration only) |
-
 ---
 
 ## First-time VPS migration (tarball → git-backed)

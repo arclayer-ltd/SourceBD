@@ -211,12 +211,12 @@ export const SCRAPER_CATALOG = [
   },
   {
     code: "uk_ofsi",
-    label: "UK OFSI",
+    label: "UK Sanctions List",
     group: "sanctions",
     sourceTier: "Tier 5",
     risk: "high",
     suggestedIntervalMinutes: 1440,
-    updates: "UK OFSI sanctions entries and supplier screening matches.",
+    updates: "UK Sanctions List entries and supplier screening matches.",
     operatorNote: "Run daily for buyer due-diligence coverage.",
   },
   {

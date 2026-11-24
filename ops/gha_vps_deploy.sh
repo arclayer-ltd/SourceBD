@@ -48,3 +48,7 @@ export GIT_CONFIG_VALUE_2="*"
 _deploy="ops/deploy_vps.sh"
 if [ -f .git ] && [ -f ops/deploy_vps.sh ]; then _deploy="$(mktemp)"; cp ops/deploy_vps.sh "$_deploy"; sed -i -e 's/\[ "$REQUIRE_GIT" -eq 1 \] && \[ ! -d \.git \]; then/[ "$REQUIRE_GIT" -eq 1 ] \&\& [ ! -d .git ] \&\& [ ! -f .git ]; then/' -e 's/if \[ -d \.git \]; then/if [ -d .git ] || [ -f .git ]; then/' "$_deploy"; fi
 bash "$_deploy" --ref="${DEPLOY_REF}" --require-git
+# The scheduled jobs are the deployed commit's ops/schedule.cron. Run here, after the checkout, so the
+# commit that changes the list is the one that installs it; a rollback to a commit from before the list
+# existed leaves the installed jobs as they were.
+if [ -f ops/install_schedule.sh ]; then bash ops/install_schedule.sh "$REPO_DIR"; fi

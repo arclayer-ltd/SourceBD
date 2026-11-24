@@ -66,12 +66,6 @@ ops/screenshots/
 ops/.slack-webhooks.psd1
 ops/*.secrets.*
 
-# Legacy deploy-quick pack artifacts (laptop only)
-_quick_*.tar.gz
-_quick_*.list
-_quick_*.sh
-_preflight.*
-
 # VPS deploy metadata (written on server at /opt/sourcebd/.deploy/)
 .deploy/
 

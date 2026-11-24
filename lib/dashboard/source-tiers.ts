@@ -62,7 +62,7 @@ const REGISTRY: Record<string, { tier: TierRank; mark: string; label: string }> 
   OFAC: { tier: 5, mark: "OF", label: "OFAC" },
   UFLPA: { tier: 5, mark: "UF", label: "UFLPA" },
   US_WRO: { tier: 5, mark: "WO", label: "US WRO" },
-  UK_OFSI: { tier: 5, mark: "UK", label: "UK OFSI" },
+  UK_OFSI: { tier: 5, mark: "UK", label: "UK Sanctions List" },
   EU_SANC: { tier: 5, mark: "EU", label: "EU sanctions" },
   // `public.sources` registers this one as `ILAB`, not `ILAB_TVPRA` (SQL,
   // 25 Sep 2026). With only the long form here, `isKnownSource("ILAB")` was

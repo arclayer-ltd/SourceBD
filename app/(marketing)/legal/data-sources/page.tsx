@@ -66,7 +66,7 @@ export default function DataSourcesPage() {
           </li>
           <li>
             <strong>Tier 5 — US/UK/EU regulatory</strong>: UFLPA
-            entity list, OFSI / OFAC sanctions, EU sanctions lists.
+            entity list, OFAC and UK sanctions lists, EU sanctions lists.
           </li>
           <li>
             <strong>Tier 6 — Cross-check sources</strong>: trade

@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 # SourceBD uptime doorbell — post to Slack only on state change (down/up).
-# Cron example:
-#   */5 * * * * /opt/sourcebd/ops/health_slack_cron.sh >> /opt/sourcebd/etl/logs/uptime_slack.log 2>&1
+# Scheduled by ops/schedule.cron.
 
 set -u
 

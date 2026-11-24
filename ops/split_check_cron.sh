@@ -3,8 +3,7 @@
 # abort the script silently. Same reasoning as conflation_check_cron.sh.
 set -uo pipefail
 
-# Run from the SourceBD VPS cron, for example:
-# 23 3 * * * /opt/sourcebd/ops/split_check_cron.sh >> /opt/sourcebd/etl/logs/split_check.log 2>&1
+# Scheduled by ops/schedule.cron.
 #
 # Daily is the right cadence, mirroring the conflation check: a split is
 # created by a scraper run and stays put until somebody merges it, so catching

@@ -3,8 +3,7 @@
 # abort the script silently. Same reasoning as scraper_queue_cron.sh.
 set -uo pipefail
 
-# Run from the SourceBD VPS cron, for example:
-# 17 3 * * * /opt/sourcebd/ops/conflation_check_cron.sh >> /opt/sourcebd/etl/logs/conflation_check.log 2>&1
+# Scheduled by ops/schedule.cron.
 #
 # Daily is the right cadence: a conflation is created by a scraper run and stays
 # put until somebody splits it, so catching it within a day is enough, and a

@@ -296,7 +296,7 @@ def shown_rows() -> list[dict[str, Any]]:
     """The newest complete row of every supplier the loader shows (class exact after the 90% rule)."""
     from volza_load_sample import shown_class
 
-    rows = {r["id"]: r for f in sorted(RAW.glob("launch_*.jsonl")) for r in load(f) if not r.get("partial")}
+    rows = newest(sorted(RAW.glob("launch_*.jsonl")))
     return [r for r in rows.values() if r["shipments"] and shown_class(r) == "exact"]
 
 
