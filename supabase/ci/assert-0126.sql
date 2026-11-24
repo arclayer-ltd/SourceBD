@@ -46,6 +46,45 @@ $$;
 
 reset role;
 
+-- The supplier portal's reads (#644), as PostgREST runs them for a signed-in claimant. The old read filtered
+-- on claimed_by and was refused, so every claimant was told they had claimed nothing. The read the portal
+-- now makes (lib/owned-suppliers.ts) asks claimed_supplier_ids() for the ids, then selects those suppliers.
+insert into public.source_records (supplier_id, source_id, source_tier, source_ref)
+select '00000000-0000-0000-0000-0000000126a1', s.id, s.tier, 'CI-0126' from public.sources s where s.code = 'RSC';
+update public.suppliers set is_published = true where id = '00000000-0000-0000-0000-0000000126a1';
+set local role authenticated;
+
+do $$
+declare
+  ids uuid[];
+  n bigint;
+  name text;
+begin
+  perform set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000126c1', true);
+
+  begin
+    perform 1 from public.suppliers where claimed_by = '00000000-0000-0000-0000-0000000126c1';
+    raise exception 'a signed-in user read suppliers by claimed_by; the portal test no longer proves #644';
+  exception when insufficient_privilege then null;
+  end;
+
+  ids := public.claimed_supplier_ids();
+  select count(*), min(company_name) into n, name
+    from (select id, slug, company_name, entity_type, city, district, supplier_attested_at
+            from public.suppliers where id = any(ids) and is_published = true) owned;
+  if n <> 1 or name <> 'CI 0126 Knit Ltd' then
+    raise exception 'the claimant reads % of their companies (%), expected CI 0126 Knit Ltd', n, name;
+  end if;
+
+  perform set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000126d1', true);
+  if cardinality(public.claimed_supplier_ids()) <> 0 then
+    raise exception 'a stranger is told they claimed a supplier';
+  end if;
+end
+$$;
+
+reset role;
+
 do $$
 begin
   if has_column_privilege('authenticated', 'public.suppliers', 'claimed_by', 'select') then

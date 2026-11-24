@@ -67,17 +67,15 @@ export default async function SupplierClaimPage({
 
   let prebound: { id: string; company_name: string; slug: string } | null = null;
   if (sp.supplier) {
+    // Who claimed a company is not readable here (REZ-22), and asking for it failed the whole read, so a
+    // Claim link never arrived pre-filled (#644). Whether it is already claimed is answered when the claim
+    // is sent: `claim_initiate` refuses it and the form says so.
     const { data: s } = await supabase
       .from("suppliers")
-      .select("id, slug, company_name, is_published, is_sanctioned, claimed_by")
+      .select("id, slug, company_name, is_published, is_sanctioned")
       .eq("slug", sp.supplier)
       .maybeSingle();
-    if (
-      s &&
-      s.is_published &&
-      !s.is_sanctioned &&
-      s.claimed_by === null
-    ) {
+    if (s && s.is_published && !s.is_sanctioned) {
       prebound = { id: s.id, slug: s.slug, company_name: s.company_name };
     }
   }

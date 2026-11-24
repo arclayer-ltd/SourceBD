@@ -42,8 +42,15 @@ let supplierRow: Record<string, unknown> | null = null;
       rpcCalls.push([fn, args]);
       return fn === "claim_verify_email" ? verified : mine;
     },
+    // Signed-in users cannot read `suppliers.claimed_by` (REZ-22); a read that asks for it is refused, as in production.
     from: () => {
-      const q = { select: () => q, eq: () => q, maybeSingle: async () => ({ data: supplierRow, error: null }) };
+      let cols = "";
+      const q = {
+        select: (c: string) => ((cols = c), q),
+        eq: () => q,
+        maybeSingle: async () =>
+          /\bclaimed_by\b/.test(cols) ? { data: null, error: { message: "permission denied for table suppliers" } } : { data: supplierRow, error: null },
+      };
       return q;
     },
   };
@@ -109,17 +116,18 @@ describe("/supplier/claim", () => {
 
   it("a company named in the address that is open to claim is selected, one that is not is not", async () => {
     reset();
-    supplierRow = { ...SUPPLIER, is_published: true, is_sanctioned: false, claimed_by: null };
+    supplierRow = { ...SUPPLIER, is_published: true, is_sanctioned: false };
     let out = await landing("square-apparels");
     assert.match(text(out), /Square Apparels Ltd Selected/);
     assert.match(text(out), /Proof email \(must be at your company\)/);
     assert.match(text(out), /Send verification email/);
-    supplierRow = { ...SUPPLIER, is_published: true, is_sanctioned: true, claimed_by: null };
+    supplierRow = { ...SUPPLIER, is_published: true, is_sanctioned: true };
     out = await landing("square-apparels");
     assert.doesNotMatch(text(out), /Send verification email/);
-    supplierRow = { ...SUPPLIER, is_published: true, is_sanctioned: false, claimed_by: "u-2" };
+    supplierRow = { ...SUPPLIER, is_published: false, is_sanctioned: false };
     out = await landing("square-apparels");
     assert.doesNotMatch(text(out), /Send verification email/);
+    // One already claimed is refused when the claim is sent (`claim_initiate`, 409 "already claimed").
   });
 });
 

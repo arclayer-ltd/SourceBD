@@ -7,10 +7,11 @@
 import Link from "next/link";
 import { UsersThree } from "@phosphor-icons/react/dist/ssr";
 
-import { Empty, Table, Td, Th, Tr, TypeChip, linkClass } from "@/components/kit";
+import { Empty, ErrorPanel, Table, Td, Th, Tr, TypeChip, linkClass } from "@/components/kit";
 import { RfqChip } from "@/components/rfqs/chip";
 import { PartnerActionButtons } from "@/components/supplier-partner-actions";
 import { SupplierPartnerRequestForm } from "@/components/supplier-partner-request-form";
+import { readOwnedSuppliers } from "@/lib/owned-suppliers";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -53,19 +54,14 @@ export default async function SupplierPartnersPage() {
   } = await supabase.auth.getUser();
   const uid = user?.id;
 
-  let owned: OwnedSupplier[] = [];
-  if (uid) {
-    const { data } = await supabase
-      .from("suppliers")
-      .select("id, slug, company_name, entity_type")
-      .eq("claimed_by", uid)
-      .eq("is_published", true)
-      .in("entity_type", ["buying_house", "factory"])
-      .order("company_name");
-    owned = (data ?? []) as OwnedSupplier[];
-  }
+  // Only a buying house or a factory has partners. null: the read failed.
+  const owned = uid
+    ? (await readOwnedSuppliers<OwnedSupplier>(supabase, "id, slug, company_name, entity_type"))?.filter(
+        (s) => s.entity_type === "buying_house" || s.entity_type === "factory",
+      ) ?? null
+    : [];
 
-  const { data: relData } = await supabase.rpc("supplier_relationship_list", {
+  const { data: relData, error: relError } = await supabase.rpc("supplier_relationship_list", {
     p_supplier_id: null,
     p_status: null,
   });
@@ -91,7 +87,9 @@ export default async function SupplierPartnersPage() {
         </p>
       </header>
 
-      {owned.length === 0 ? (
+      {owned === null || relError ? (
+        <ErrorPanel title="Your partners could not be loaded.">Reload the page to try again.</ErrorPanel>
+      ) : owned.length === 0 ? (
         <Empty
           icon={UsersThree}
           title="Claim a buying house or factory to manage partnerships."

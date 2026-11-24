@@ -1,4 +1,5 @@
-import { ButtonLink, TypeChip } from "@/components/kit";
+import { ButtonLink, InlineError, TypeChip } from "@/components/kit";
+import { readOwnedSuppliers } from "@/lib/owned-suppliers";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 // Supplier Profile Editor — listing page (Spec S2).
@@ -21,16 +22,7 @@ export default async function SupplierProfileList() {
   } = await supabase.auth.getUser();
   const uid = user?.id;
 
-  let owned: OwnedRow[] = [];
-  if (uid) {
-    const { data } = await supabase
-      .from("suppliers")
-      .select("id, slug, company_name, supplier_attested_at")
-      .eq("claimed_by", uid)
-      .eq("is_published", true)
-      .order("company_name");
-    owned = (data ?? []) as OwnedRow[];
-  }
+  const owned = uid ? await readOwnedSuppliers<OwnedRow>(supabase, "id, slug, company_name, supplier_attested_at") : [];
 
   return (
     <div className="mx-auto flex w-full max-w-[1200px] flex-col gap-6">
@@ -44,10 +36,12 @@ export default async function SupplierProfileList() {
       <section aria-label="Your companies" className="rounded-md border border-line p-5">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h2 className="text-md font-semibold text-ink">Your companies</h2>
-          <p className="text-sm text-ink-3">{owned.length} owned</p>
+          {owned ? <p className="text-sm text-ink-3">{owned.length} owned</p> : null}
         </div>
         <div className="mt-4">
-          {owned.length === 0 ? (
+          {owned === null ? (
+            <InlineError>Your companies could not be loaded. Reload the page to try again.</InlineError>
+          ) : owned.length === 0 ? (
             <div className="flex flex-col items-start gap-3 text-base text-ink-2">
               <p>You haven&apos;t claimed any companies yet.</p>
               <ButtonLink href="/supplier/claim" kind="primary">

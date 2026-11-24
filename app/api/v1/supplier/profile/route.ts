@@ -1,6 +1,5 @@
 // /api/v1/supplier/profile — Supplier Profile Editor (Spec S2).
 //
-// GET  ?list=mine                → caller's claimed-supplier list
 // GET  ?supplier_id=<uuid>       → editable + register payload for one supplier
 // POST { supplier_id, patch:{…} } → supplier_profile_upsert
 //
@@ -23,7 +22,7 @@ const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 async function requireAuth(): Promise<
-  { supabase: Sb; userId: string } | NextResponse
+  { supabase: Sb } | NextResponse
 > {
   const supabase = await createSupabaseServerClient();
   const {
@@ -32,7 +31,7 @@ async function requireAuth(): Promise<
   if (!user) {
     return NextResponse.json({ error: "unauthorised" }, { status: 401 });
   }
-  return { supabase, userId: user.id };
+  return { supabase };
 }
 
 function rpcStatus(detail: string): number {
@@ -46,25 +45,9 @@ function rpcStatus(detail: string): number {
 export async function GET(req: Request) {
   const gate = await requireAuth();
   if (gate instanceof NextResponse) return gate;
-  const { supabase, userId } = gate;
+  const { supabase } = gate;
 
   const url = new URL(req.url);
-  if (url.searchParams.get("list") === "mine") {
-    const { data, error } = await supabase
-      .from("suppliers")
-      .select("id, slug, company_name, supplier_attested_at")
-      .eq("claimed_by", userId)
-      .eq("is_published", true)
-      .order("company_name");
-    if (error) {
-      return NextResponse.json(
-        { error: "list failed", detail: error.message },
-        { status: 400 },
-      );
-    }
-    return NextResponse.json({ suppliers: data ?? [] });
-  }
-
   const supplierId = url.searchParams.get("supplier_id");
   if (!supplierId || !UUID_RE.test(supplierId)) {
     return NextResponse.json(

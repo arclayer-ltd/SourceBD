@@ -1,8 +1,8 @@
 // The supplier portal (B10d) on the v4 kit, drawn over a fake Supabase client: the dashboard, the
 // company profile, RFQs received, the inbox and a thread, partners and documents. What a person
 // needs is pinned: the headings and figures render, an unreadable read is an error panel and not an
-// empty list, a page that is not the caller's stays a 404 (or a redirect), and the server-side
-// filters (`claimed_by`) are still on the reads. No old-kit class is left in the files ported.
+// empty list, a page that is not the caller's stays a 404 (or a redirect), and the caller's companies
+// come from `claimed_supplier_ids()`, never from `claimed_by`. No old-kit class is left in the files ported.
 
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -23,21 +23,28 @@ let rpcs: Record<string, Reply> = {};
 let filters: Filter[] = [];
 let user: { id: string } | null = { id: "u-supplier" };
 
+// Production's grant, held here: signed-in users cannot read `suppliers.claimed_by` (REZ-22), so a read that
+// selects or filters on it is refused, as Postgres refuses it. Faking the column as readable is how the portal
+// shipped reading it and showed every claimant "You haven't claimed any companies yet" (#644).
+const REFUSED = { data: null, error: { message: "permission denied for table suppliers" } };
 {
   const chain = (table: string): unknown => {
     const q: Record<string, unknown> = {};
+    let touchesClaimedBy = false;
     for (const op of ["select", "eq", "in", "order"]) {
       q[op] = (...args: unknown[]) => {
         filters.push({ table, op, args });
+        if (table === "suppliers" && /\bclaimed_by\b/.test(String(args[0]))) touchesClaimedBy = true;
         return q;
       };
     }
-    q.then = (res: (v: Reply) => unknown) => res(tables[table] ?? { data: [], error: null });
+    const reply = (): Reply => (touchesClaimedBy ? REFUSED : (tables[table] ?? { data: [], error: null }));
+    q.then = (res: (v: Reply) => unknown) => res(reply());
     // `.maybeSingle()` answers the first row of the table's reply, or null (the profile's terms read).
     q.maybeSingle = async () => {
-      const reply = tables[table];
-      const rows = Array.isArray(reply?.data) ? (reply.data as unknown[]) : [];
-      return { data: rows[0] ?? null, error: reply?.error ?? null };
+      const r = reply();
+      const rows = Array.isArray(r.data) ? (r.data as unknown[]) : [];
+      return { data: rows[0] ?? null, error: r.error ?? null };
     };
     return q;
   };
@@ -81,6 +88,14 @@ const RFQ = {
 };
 const THREAD = { id: UUID, buyer_id: "b-1", supplier_id: "s-1", supplier_slug: "aboni-knitwear", supplier_name: "Aboni Knitwear Ltd.", supplier_entity_type: "factory", buyer_email: "buyer@example.com", buyer_display_name: "Priya Shah", viewer_role: "supplier", rfq_id: null, subject: "Trousers", last_message_at: "2026-09-10T10:00:00Z", updated_at: "2026-09-10T10:00:00Z", created_at: "2026-09-10T10:00:00Z", message_count: 2 };
 
+// The caller's companies are read by the ids the database says they claimed, and nothing reads `claimed_by`.
+const readsOwnedByIds = (ids: string[]) => {
+  assert.ok(filters.some((f) => f.table === "suppliers" && f.op === "in" && f.args[0] === "id" && JSON.stringify(f.args[1]) === JSON.stringify(ids)), "the companies read is not the caller's claimed ids");
+  assert.ok(!filters.some((f) => f.table === "suppliers" && /\bclaimed_by\b/.test(String(f.args[0]))), "a portal read asks for claimed_by, which signed-in users cannot read");
+};
+const OWNS_S1 = { claimed_supplier_ids: { data: ["s-1"], error: null } };
+const IDS_DOWN = { claimed_supplier_ids: { data: null, error: { message: "permission denied for function claimed_supplier_ids" } } };
+
 beforeEach(() => {
   tables = {};
   rpcs = {};
@@ -92,6 +107,7 @@ describe("/supplier (the dashboard)", () => {
   it("draws the heading, the claimed company with its edit link and the counts, and reads only this caller's companies", async () => {
     tables = { suppliers: { data: [SUPPLIER], error: null } };
     rpcs = {
+      ...OWNS_S1,
       claim_list_mine: { data: { results: [{ id: "c-1", status: "pending_email", method: "domain_email", proof_email: "me@aboni.example", supplier: { company_name: "Rahim Textiles", city: null, district: null } }] }, error: null },
       rfq_list: { data: [{ id: "r-1", status: "open", viewer_role: "supplier" }, { id: "r-2", status: "open", viewer_role: "buyer" }], error: null },
       supplier_relationship_list: { data: [{ id: "x", status: "pending", viewer_role: "factory", initiated_side: "buying_house" }], error: null },
@@ -102,14 +118,29 @@ describe("/supplier (the dashboard)", () => {
     assert.equal(out.match(/<h1\b/g)?.length, 1);
     for (const s of ["Claimed companies", "1 owned", "Aboni Knitwear Ltd.", "Rahim Textiles", "Awaiting email", "1 total · 1 open", "1 open RFQ is awaiting your quote.", "0 accepted · 1 awaiting you", "1 partnership request is awaiting your decision."]) assert.ok(t.includes(s), s);
     assert.match(out, /href="\/supplier\/profile\/s-1"/);
-    assert.ok(filters.some((f) => f.table === "suppliers" && f.op === "eq" && f.args[0] === "claimed_by" && f.args[1] === "u-supplier"), "the companies read is not scoped to the caller");
+    readsOwnedByIds(["s-1"]);
   });
 
   it("with nothing claimed it says so and offers the claim", async () => {
+    rpcs = { claimed_supplier_ids: { data: [], error: null } };
     const out = await render("page.js");
     assert.match(text(out), /You haven't claimed any companies yet\./);
     assert.match(out, /href="\/supplier\/claim"/);
     assert.match(text(out), /No claims awaiting verification or admin review\./);
+  });
+
+  it("a failed read of the caller's companies is an error, never 'nothing claimed'", async () => {
+    const reads: { rpcs: Record<string, Reply>; tables: Record<string, Reply> }[] = [
+      { rpcs: IDS_DOWN, tables: {} },
+      { rpcs: OWNS_S1, tables: { suppliers: { data: null, error: { message: "down" } } } },
+    ];
+    for (const r of reads) {
+      rpcs = r.rpcs;
+      tables = r.tables;
+      const t = text(await render("page.js"));
+      assert.match(t, /Your companies could not be loaded\./);
+      assert.doesNotMatch(t, /You haven't claimed any companies yet/);
+    }
   });
 
   it("asks a supplier who has not accepted the current terms to, names the old version when there was one, and leaves one who has alone (0134)", async () => {
@@ -133,11 +164,19 @@ describe("/supplier (the dashboard)", () => {
 describe("/supplier/profile and /supplier/profile/[id]", () => {
   it("lists the caller's companies with Edit profile", async () => {
     tables = { suppliers: { data: [SUPPLIER], error: null } };
+    rpcs = OWNS_S1;
     const out = await render("profile/page.js");
     assert.match(out, /<h1[^>]*>Company profile<\/h1>/);
     assert.match(text(out), /Aboni Knitwear Ltd\. Not yet edited/);
     assert.match(out, /href="\/supplier\/profile\/s-1"/);
-    assert.ok(filters.some((f) => f.op === "eq" && f.args[0] === "claimed_by" && f.args[1] === "u-supplier"));
+    readsOwnedByIds(["s-1"]);
+  });
+
+  it("the list says it could not load, not that nothing is claimed, when the read fails", async () => {
+    rpcs = IDS_DOWN;
+    const t = text(await render("profile/page.js"));
+    assert.match(t, /Your companies could not be loaded\./);
+    assert.doesNotMatch(t, /You haven't claimed any companies yet/);
   });
 
   it("is a 404 when the company is not the caller's, and the editor otherwise", async () => {
@@ -279,12 +318,22 @@ describe("/supplier/partners and /supplier/documents", () => {
 
   it("groups the relationships, with Accept and Reject on an incoming request, for a caller who owns a factory", async () => {
     tables = { suppliers: { data: [{ id: "s-1", slug: "aboni-knitwear", company_name: "Aboni Knitwear Ltd.", entity_type: "factory" }], error: null } };
-    rpcs = { supplier_relationship_list: { data: [rel({}), rel({ id: "rel-2", status: "accepted", can_decide: false, can_revoke: true })], error: null } };
+    rpcs = { ...OWNS_S1, supplier_relationship_list: { data: [rel({}), rel({ id: "rel-2", status: "accepted", can_decide: false, can_revoke: true })], error: null } };
     const out = await render("partners/page.js");
     const t = text(out);
     assert.match(out, /<h1[^>]*>Partners<\/h1>/);
     for (const s of ["Request a partnership", "Incoming requests", "1 awaiting your decision", "Active partnerships", "1 accepted", "Global Sourcing Ltd.", "Let us work together", "Accept", "Reject", "Revoke", "No outgoing requests."]) assert.ok(t.includes(s), s);
-    assert.ok(filters.some((f) => f.op === "eq" && f.args[0] === "claimed_by" && f.args[1] === "u-supplier"));
+    readsOwnedByIds(["s-1"]);
+  });
+
+  it("a failed read is an error, not 'claim a company'", async () => {
+    for (const r of [IDS_DOWN, { ...OWNS_S1, supplier_relationship_list: { data: null, error: { message: "down" } } }]) {
+      tables = { suppliers: { data: [{ id: "s-1", slug: "aboni-knitwear", company_name: "Aboni Knitwear Ltd.", entity_type: "factory" }], error: null } };
+      rpcs = r;
+      const t = text(await render("partners/page.js"));
+      assert.match(t, /Your partners could not be loaded\./);
+      assert.doesNotMatch(t, /Claim a buying house or factory/);
+    }
   });
 
   it("a caller with no buying house or factory is told to claim one", async () => {

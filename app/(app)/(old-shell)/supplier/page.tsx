@@ -1,8 +1,9 @@
 import Link from "next/link";
 
 import { TermsAcceptBanner } from "@/components/frame/terms-banner";
-import { ButtonLink, TypeChip, linkClass } from "@/components/kit";
+import { ButtonLink, InlineError, TypeChip, linkClass } from "@/components/kit";
 import { TERMS_VERSION } from "@/lib/onboarding";
+import { readOwnedSuppliers } from "@/lib/owned-suppliers";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 // Supplier portal landing (extended by Spec S1).
@@ -60,24 +61,20 @@ export default async function SupplierHome() {
   } = await supabase.auth.getUser();
   const uid = user?.id;
 
-  let owned: OwnedSupplier[] = [];
+  // null: the read failed, which is said as such and never as "nothing claimed".
+  let owned: OwnedSupplier[] | null = [];
   // Which terms this person has accepted (moderation plan 1d, legal track 4.10: suppliers' acceptance is
   // recorded too). Unknown when the read fails, and then no banner: a nag on a broken read is worse than none.
   let terms: { known: boolean; version: string | null } = { known: false, version: null };
   if (uid) {
-    const [{ data }, profile] = await Promise.all([
-      supabase
-        .from("suppliers")
-        .select("id, slug, company_name, entity_type, city, district")
-        .eq("claimed_by", uid)
-        .eq("is_published", true)
-        .order("company_name"),
+    const [ownedRead, profile] = await Promise.all([
+      readOwnedSuppliers<OwnedSupplier>(supabase, "id, slug, company_name, entity_type, city, district"),
       Promise.resolve(supabase.from("profiles").select("terms_version").eq("id", uid).maybeSingle()).then(
         (r) => ({ known: !r.error, version: (r.data as { terms_version?: string | null } | null)?.terms_version ?? null }),
         () => ({ known: false, version: null }),
       ),
     ]);
-    owned = (data ?? []) as OwnedSupplier[];
+    owned = ownedRead;
     terms = profile;
   }
   const termsDue = terms.known && terms.version !== TERMS_VERSION;
@@ -126,8 +123,10 @@ export default async function SupplierHome() {
 
       {termsDue ? <TermsAcceptBanner version={TERMS_VERSION} accepted={terms.version} /> : null}
 
-      <Panel title="Claimed companies" meta={`${owned.length} owned`}>
-        {owned.length === 0 ? (
+      <Panel title="Claimed companies" meta={owned ? `${owned.length} owned` : ""}>
+        {owned === null ? (
+          <InlineError>Your companies could not be loaded. Reload the page to try again.</InlineError>
+        ) : owned.length === 0 ? (
           <div className="flex flex-col items-start gap-3 text-base text-ink-2">
             <p>You haven&apos;t claimed any companies yet.</p>
             <ButtonLink href="/supplier/claim" kind="primary">
