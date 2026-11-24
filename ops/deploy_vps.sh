@@ -236,17 +236,25 @@ main() {
 	# second answers without touching the database, so a site that cannot reach Supabase
 	# passed. Do not return after localhost is up either: GitHub's public smoke runs the
 	# moment SSH exits (run 31855403484, 15 Aug 2026).
+	# A rollback to a commit from before /api/health/db existed can only be checked the old
+	# way; asking it for /api/health/db would fail a rollback that worked.
+	HEALTH_PATH=/api/health/db
+	HEALTH_SAYS="is live and reads its database"
+	if ! git cat-file -e "$COMMIT_SHA:app/api/health/db/route.ts" 2>/dev/null; then
+		HEALTH_PATH=/api/health
+		HEALTH_SAYS="is live (it predates /api/health/db, so its database was not checked)"
+	fi
 	attempt=0
-	until curl --silent --fail --max-time 10 http://127.0.0.1/api/health/db >/dev/null; do
+	until curl --silent --fail --max-time 10 "http://127.0.0.1$HEALTH_PATH" >/dev/null; do
 		attempt=$((attempt+1))
 		if [ "$attempt" -gt 20 ]; then
 			docker compose -f "$COMPOSE_FILE" logs --tail=40 web >&2
-			die "The site did not read its database within a minute (/api/health/db) — rollback: bash ops/deploy_vps.sh --ref=$(cat "$DEPLOY_META_DIR/previous-sha" 2>/dev/null || echo UNKNOWN)"
+			die "The site did not answer $HEALTH_PATH within a minute — rollback: bash ops/deploy_vps.sh --ref=$(cat "$DEPLOY_META_DIR/previous-sha" 2>/dev/null || echo UNKNOWN)"
 		fi
 		sleep 3
 	done
 	echo
-	echo "  ✓ deploy OK — commit $COMMIT_SHA is live and reads its database"
+	echo "  ✓ deploy OK — commit $COMMIT_SHA $HEALTH_SAYS"
 	echo "  elapsed: ${DEPLOY_ELAPSED_S}s"
 	if [ -f "$DEPLOY_META_DIR/previous-sha" ]; then
 		echo "  rollback ref: $(cat "$DEPLOY_META_DIR/previous-sha")"
