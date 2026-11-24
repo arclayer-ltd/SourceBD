@@ -203,7 +203,7 @@ export function QuotesSwitch({ current, rfqs, orders, newHref = NEW_RFQ_HREF, ne
   );
 }
 
-const PROMISES = ["Each quote shows how far it is above or under your target.", "We flag any MOQ that is above your quantity.", "Each supplier gets its own copy. Your email stays private."];
+const PROMISES = ["Each quote shows how far it is above or under your target.", "We flag any MOQ that is above your quantity.", "Each supplier on SourceBD gets its own copy. Your email stays private."];
 
 /** The phone's "No RFQs yet" (Paper 36 `rfqs-empty`): how a quote starts, in three steps, and the search. */
 export const RFQ_EMPTY_PHONE = {
