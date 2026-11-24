@@ -443,24 +443,50 @@ export function zaheenSampleInput(): RecordInput & {
 }
 
 /**
- * The sanctioned state, on a placeholder company. Production holds no sanctioned
- * supplier, and a real, named company is never marked sanctioned here: the name
- * and slug are placeholders, and `fixtures.test.ts` fails if they ever match a
- * real fixture.
+ * The sanctioned state, on a made-up placeholder that is not any real company.
+ * Production holds no sanctioned supplier, and a real, named company is never
+ * marked sanctioned here. It borrows the shape of a record, nothing that
+ * identifies one: no real id, register number, source reference, document URL
+ * or place. `fixtures.test.ts` fails if any of those match a real fixture.
  */
 export function sanctionedInput(): RecordInput {
   const base = zaheenSampleInput();
+  const { leaked: _leaked, ...input } = base;
+  void _leaked;
   return {
-    ...base,
+    ...input,
     profile: {
       ...base.profile,
       supplier: {
         ...base.profile.supplier,
+        id: "00000000-0000-4000-8000-000000000001",
         company_name: "[Sanctioned supplier]",
         slug: "sanctioned-supplier-placeholder",
+        city: null,
+        district: null,
+        employees_total: null,
         is_sanctioned: true,
       },
-    },
+      pills: [{ source_code: "RSC", label: "RSC ID", value: "0000", source_url: "https://www.rsc-bd.org/" }],
+      rsc_remediation: [
+        {
+          progress_pct: 75,
+          workers_count: null,
+          remediation_status: "behindschedule",
+          training_status: "yet to start",
+          fetched_at: "2026-08-07T05:56:42.605291+00:00",
+          fire_inspection_url: null,
+          structural_inspection_url: null,
+          electrical_inspection_url: null,
+          boiler_inspection_url: null,
+          cap_url: null,
+        },
+      ],
+      provenance: [
+        { source_code: "RSC", display_name: "RMG Sustainability Council", tier: "tier1_gov", source_ref: "0000", source_url: "https://rsc-bd.org", last_seen_at: "2026-09-18T05:47:07.954625+00:00" },
+      ],
+    } as unknown as ProfilePayload,
+    workers: null,
   };
 }
 
