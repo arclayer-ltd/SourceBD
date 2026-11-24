@@ -409,39 +409,32 @@ describe("a building's registrations are named, never counted and never denied",
   });
 });
 
-describe("buildCard / buildTableRow — the sanctioned sample keeps its company name", () => {
-  it("is marked sanctioned as a sample, and the name loses only its buildings", () => {
+describe("buildCard / buildTableRow — the company name keeps its place", () => {
+  it("the name loses only its buildings", () => {
     const input = zaheenSampleInput();
     const card = buildCard(input);
     const row = buildTableRow(input);
-    assert.equal(card.sanctioned, true);
-    assert.equal(card.sanctionSample, true);
+    assert.equal(card.sanctioned, false);
     // The sheds and buildings the name ends with are the Sites tab's; the company's own name is never shortened.
     assert.equal(card.name, "Zaheen Knitwears Limited");
     assert.equal(row.name, "Zaheen Knitwears Limited");
     assert.deepEqual(buildSheet(input).buildings, ["Shed - 3, 4, 5, 10, 11, 12, 13", "Building - Security, ETP and Fire Pump"]);
-    assert.equal(row.sanctioned, true);
+    assert.equal(row.sanctioned, false);
     assert.equal(row.workers, 1634);
     assert.ok(card.chips.some((c) => c.tone === "caution" && /RSC active · 75 % · behind schedule/.test(c.label)));
   });
 
-  // Cycle 5, test-adequacy critic: only the ProductSheet had a fixture whose
-  // `is_sanctioned` was genuinely true, so the sample flag was the only thing
-  // any test exercised. A production sanction must reach every model.
-  it("a production sanction — not the gallery's sample flag — reaches the card, the row and the sheet", () => {
+  it("a production sanction reaches the card, the row and the sheet", () => {
     const input = sanctionedInput();
     assert.equal(input.profile.supplier.is_sanctioned, true);
-    assert.equal(input.sanctionSample, undefined);
     for (const model of [buildCard(input), buildTableRow(input), buildSheet(input), buildProductSheet(input, "6105")]) {
       assert.equal(model.sanctioned, true);
-      assert.equal(model.sanctionSample, undefined, "a production sanction is never labelled a sample");
     }
   });
 
   it("a production record is not sanctioned unless the database says so", () => {
     const card = buildCard(aboniInput());
     assert.equal(card.sanctioned, false);
-    assert.equal(card.sanctionSample, undefined);
     assert.equal(buildTableRow(aboniInput()).sanctioned, false);
     assert.equal(buildSheet(aboniInput()).sanctioned, false);
     assert.equal(buildProductSheet(aboniInput(), "6105").sanctioned, false);

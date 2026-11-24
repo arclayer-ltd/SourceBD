@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Written for the tests to the layout of the FCDO UK Sanctions List
+     (https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.xml). The names and references are
+     made up: this is not an extract of the list and none of these is a real designation. -->
+<Designations xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <DateGenerated>2026-11-20T09:00:00</DateGenerated>
+  <Designation>
+    <LastUpdated>2026-03-02T00:00:00</LastUpdated>
+    <DateDesignated>2026-02-10T00:00:00</DateDesignated>
+    <UniqueID>TST0001</UniqueID>
+    <OFSIGroupID>99001</OFSIGroupID>
+    <UNReferenceNumber />
+    <Names>
+      <Name>
+        <Name6>EXAMPLE TEXTILE TRADING LLC</Name6>
+        <NameType>Primary Name</NameType>
+      </Name>
+      <Name>
+        <Name6>EXAMPLE TEXTILES</Name6>
+        <NameType>Alias</NameType>
+        <AliasStrength>Good quality</AliasStrength>
+      </Name>
+      <Name>
+        <Name6>EXAMPLE TEXTILES</Name6>
+        <NameType>Alias</NameType>
+      </Name>
+    </Names>
+    <RegimeName>Test Regime</RegimeName>
+    <IndividualEntityShip>Entity</IndividualEntityShip>
+    <DesignationSource>UK</DesignationSource>
+    <SanctionsImposed>Asset freeze|Trust services sanctions</SanctionsImposed>
+    <UKStatementofReasons>Involved in a test of the reader.</UKStatementofReasons>
+    <Addresses>
+      <Address>
+        <AddressLine1>1 Example Road</AddressLine1>
+        <AddressCountry>Testland</AddressCountry>
+      </Address>
+    </Addresses>
+  </Designation>
+  <Designation>
+    <LastUpdated>2026-06-01T00:00:00</LastUpdated>
+    <DateDesignated>2026-06-01T00:00:00</DateDesignated>
+    <UniqueID>TST0002</UniqueID>
+    <Names>
+      <Name>
+        <Name6>SECOND EXAMPLE COMPANY</Name6>
+        <NameType>Primary Name</NameType>
+      </Name>
+    </Names>
+    <RegimeName>Test Regime</RegimeName>
+    <IndividualEntityShip>Entity</IndividualEntityShip>
+    <SanctionsImposed>Asset freeze</SanctionsImposed>
+  </Designation>
+  <Designation>
+    <DateDesignated>2026-02-10T00:00:00</DateDesignated>
+    <UniqueID>TST0003</UniqueID>
+    <OFSIGroupID>99003</OFSIGroupID>
+    <Names>
+      <Name>
+        <Name1>EXAMPLE</Name1>
+        <Name6>PERSON</Name6>
+        <NameType>Primary Name</NameType>
+      </Name>
+    </Names>
+    <IndividualEntityShip>Individual</IndividualEntityShip>
+  </Designation>
+  <Designation>
+    <UniqueID>TST0004</UniqueID>
+    <Names>
+      <Name>
+        <Name6>EXAMPLE VESSEL</Name6>
+        <NameType>Primary Name</NameType>
+      </Name>
+    </Names>
+    <IndividualEntityShip>Ship</IndividualEntityShip>
+  </Designation>
+</Designations>

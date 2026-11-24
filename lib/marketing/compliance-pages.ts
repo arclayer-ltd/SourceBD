@@ -199,7 +199,7 @@ export const COMPLIANCE_PAGES: CompliancePage[] = [
           "Bangladesh is not Xinjiang, but UFLPA traceability requires you to prove the negative — that no input in your supply chain originated there. SourceBD's data layer supports that work:",
         ],
         bullets: [
-          "Every published supplier in our index is screened against the UFLPA Entity List, the US CBP Withhold Release Orders, the OFAC SDN list, the UK OFSI consolidated list, the EU consolidated sanctions list, and the US DoL ILAB TVPRA goods-by-country catalogue.",
+          "Every published supplier in our index is screened against the UFLPA Entity List, the US CBP Withhold Release Orders, the OFAC SDN list, the UK Sanctions List, the EU consolidated sanctions list, and the US DoL ILAB TVPRA goods-by-country catalogue.",
           "Suppliers flagged as active sanctions hits carry a top-of-profile red banner and a server-internal score of zero.",
           "The SourceBD UFLPA tracker scans your saved suppliers for both Entity List matches and conservative region-flag heuristics (parent group or address text matching `xinjiang|uyghur|uighur|XUAR`) so you see flags before you book production.",
         ],
@@ -488,7 +488,7 @@ export const COMPLIANCE_PAGES: CompliancePage[] = [
         bullets: [
           "Every supplier in the index carries source-pill provenance for every published claim — issuer, source URL, last-seen date — so each fact in your due-diligence record is verifiable by an auditor.",
           "RSC remediation percentages and the 7,000+ mirrored inspection documents support the actual-impacts identification and remediation evidence.",
-          "Sanctions screening against six lists (UFLPA, US WROs, OFAC SDN, UK OFSI, EU consolidated sanctions, ILAB TVPRA) feeds the human-rights risk identification step.",
+          "Sanctions screening against six lists (UFLPA, US WROs, OFAC SDN, UK Sanctions List, EU consolidated sanctions, ILAB TVPRA) feeds the human-rights risk identification step.",
           "Brand-disclosure attributions show where named buyers have already verified a factory; useful when assessing risk in shared supply chains.",
         ],
       },

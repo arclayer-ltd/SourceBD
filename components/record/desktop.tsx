@@ -388,12 +388,6 @@ export function OverviewSection({ model, today, level, exportsHref, market = nul
   return (
     <section id="record-overview" aria-label="Overview" className="flex scroll-mt-[calc(var(--record-offset,0px)+12px)] flex-col gap-[26px] [@container_(min-width:760px)]:gap-8">
       <ExportGrid model={model} today={today} level={level} href={exportsHref} market={market} rank={rank} />
-      {model.sanctionSample ? (
-        <p className="flex flex-wrap items-center gap-2 px-3 text-xs text-ink-3">
-          <span className="flex h-[22px] items-center rounded border border-dashed border-line-strong px-2 font-medium text-ink">Sample state</span>
-          No published supplier is on a sanctions list today. Placeholders only; no real company is shown.
-        </p>
-      ) : null}
       <KeyFacts model={model} level={level} />
       <Memberships model={model} today={today} level={level} />
       <Buyers model={model} today={today} level={level} />

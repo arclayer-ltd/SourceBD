@@ -11,7 +11,7 @@ export type ClaimVerifyData = {
   link: string;
   companyName: string;
   proofEmail: string;
-  /** True when the proof email's domain matches the company's own, so the click itself approves the claim. */
+  /** True when the proof email is at the company's own website domain and no other company uses it (claim_initiate, 0164), so the click itself approves the claim. */
   autoApprove: boolean;
 };
 
@@ -29,8 +29,8 @@ export function ClaimVerify({ data }: { data: ClaimVerifyData }) {
       </Button>
       <Text style={emailStyles.paragraph}>
         {data.autoApprove
-          ? "Because this email is at the company's own domain, the claim is activated as soon as you click."
-          : "After you confirm, a SourceBD moderator reviews the claim and you are told the decision by email."}
+          ? "Because this email is at the company's own web domain, the claim is activated as soon as you click."
+          : "After you confirm, someone at SourceBD checks the claim. Its status shows on your claims page in SourceBD."}
       </Text>
       <Text style={emailStyles.muted}>If you did not ask for this, ignore this email and nothing changes.</Text>
     </EmailLayout>
