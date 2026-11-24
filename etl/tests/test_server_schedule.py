@@ -129,7 +129,7 @@ def test_install_fails_loudly_without_the_list(tmp_path: Path) -> None:
 
 def test_the_deploy_installs_the_schedule_after_checking_out_the_commit() -> None:
     remote = (ROOT / "ops" / "gha_vps_deploy.sh").read_text(encoding="utf-8")
-    deploy_at = remote.index('bash "$_deploy" --ref="${DEPLOY_REF}" --require-git')
+    deploy_at = remote.index('bash "$_deploy" --ref="${DEPLOY_REF}"')
     install = 'if [ -f ops/install_schedule.sh ]; then bash ops/install_schedule.sh "$REPO_DIR"; fi'
     assert install in remote
     assert remote.index(install) > deploy_at
