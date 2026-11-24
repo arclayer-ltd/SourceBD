@@ -21,10 +21,12 @@ from etl.core.scraper import BaseScraper, IncompleteRead, ScrapedRecord
 
 
 class _Cur:
-    """Answers the run log's statements; the last complete read is `last`."""
+    """Answers the run log's statements; the last complete read is `last`, and
+    `news` is what the sanctions review queue gained during the run."""
 
-    def __init__(self, last: int | None) -> None:
+    def __init__(self, last: int | None, news: dict[str, int] | None = None) -> None:
         self.last = last
+        self.news = news or {}
         self.closed_as: list[str] = []
         self._sql = ""
 
@@ -44,6 +46,8 @@ class _Cur:
             return {"id": "11111111-1111-1111-1111-111111111111"}
         if self._sql.startswith("select records_seen from public.etl_runs"):
             return None if self.last is None else {"records_seen": self.last}
+        if "from public.verification_queue q" in self._sql:
+            return self.news
         return {}
 
     def fetchall(self) -> list[dict[str, Any]]:
@@ -73,8 +77,8 @@ class _Db:
 
 @pytest.fixture
 def run_log(monkeypatch: pytest.MonkeyPatch):
-    def make(last: int | None) -> _Cur:
-        cur = _Cur(last)
+    def make(last: int | None, news: dict[str, int] | None = None) -> _Cur:
+        cur = _Cur(last, news)
         for mod in (scraper, sanctions):
             monkeypatch.setattr(mod, "db", _Db(cur))
             monkeypatch.setattr(mod, "get_source_id", lambda code: "src")
@@ -250,6 +254,43 @@ def test_a_full_sanctions_read_still_succeeds(run_log, monkeypatch) -> None:
     log = run_log(last=10)
     _run_list(monkeypatch, _List(10), _ingested)
     assert log.closed_as == ["success"]
+
+
+def test_a_failed_sanctions_read_still_tells_of_the_matches_it_stored(run_log, monkeypatch) -> None:
+    # Two entries matched a supplier (stored, supplier hidden from search) and a
+    # third failed to save. The run must fail, and the matches must still be
+    # told: the retry sees those two entries as unchanged and never screens them
+    # again, so this is the only notice they get.
+    log = run_log(last=3, news={"hits": 2, "cleared": 0})
+    sent: list[str] = []
+    monkeypatch.setattr("etl.core.notify.slack", sent.append)
+    outcomes = iter([None, None, RuntimeError("deadlock detected")])
+
+    def ingest(entry, run_id=None):
+        out = next(outcomes)
+        if isinstance(out, Exception):
+            raise out
+        return {"entry_id": entry.entry_ref, "matched_supplier_ids": ["sup"], "screened": 1}
+
+    with pytest.raises(IncompleteRead, match="1 of 3"):
+        _run_list(monkeypatch, _List(3), ingest)
+    assert log.closed_as == ["failed"]
+    assert len(sent) == 1
+    assert "2 possible new matches" in sent[0]
+    assert "failed" in sent[0]
+
+
+def test_a_sanctions_run_with_nothing_new_sends_no_notice(run_log, monkeypatch) -> None:
+    run_log(last=2)
+    sent: list[str] = []
+    monkeypatch.setattr("etl.core.notify.slack", sent.append)
+
+    def ingest(entry, run_id=None):
+        raise RuntimeError("down")
+
+    with pytest.raises(IncompleteRead):
+        _run_list(monkeypatch, _List(2), ingest)
+    assert sent == []
 
 
 # --- the decision ------------------------------------------------------------

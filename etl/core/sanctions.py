@@ -664,11 +664,16 @@ class BaseSanctionScraper(abc.ABC):
             c.commit()
         held = [lst for lst, r in ((extra or {}).get("reconcile") or {}).items()
                 if (r or {}).get("action") == "held"]
-        if status == "success" and (news.get("hits") or news.get("cleared") or held):
+        # Told whatever status the run closes with: a match stored by a run that
+        # then fails is not screened again by the retry (the entry is unchanged),
+        # so this is the only notice it gets.
+        if news.get("hits") or news.get("cleared") or held:
             from etl.core.notify import slack
 
             slack(
-                f":rotating_light: SourceBD sanctions read ({self.code}): "
+                f":rotating_light: SourceBD sanctions read ({self.code}"
+                + ("" if status == "success" else f", {status}; stored before it stopped")
+                + "): "
                 f"{news.get('hits') or 0} possible new matches (hidden from search, in "
                 f"/admin/sanctions for review), {news.get('cleared') or 0} suppliers whose "
                 f"entry was delisted (review before clearing)"
