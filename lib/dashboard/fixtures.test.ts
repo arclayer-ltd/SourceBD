@@ -294,17 +294,41 @@ describe("no fixture invents a fact about a named company", () => {
     for (const [id, slugs] of byId) assert.equal(slugs.size, 1, `${id} is used for ${[...slugs].join(" and ")}`);
   });
 
-  it("no fixture claims a company is sanctioned; production holds none, so the one sanctioned screen is flagged as a sample", () => {
+  it("no fixture marks a real company sanctioned; the one sanctioned state is a placeholder", () => {
     for (const { name, input } of FIXTURES) {
       assert.equal(input.profile.supplier.is_sanctioned, false, `${name} marks a real company sanctioned`);
     }
     // `select count(*) from suppliers where is_sanctioned` was 0 on 20 Sep 2026.
-    const sample = zaheenSampleInput();
-    assert.equal(sample.sanctionSample, true, "the gallery's sanctioned screen must say it is a sample");
-    assert.equal(sample.profile.supplier.is_sanctioned, false);
-    const real = sanctionedInput();
-    assert.equal(real.profile.supplier.is_sanctioned, true);
-    assert.equal(real.sanctionSample, undefined);
+    const sanctioned = sanctionedInput().profile.supplier;
+    assert.equal(sanctioned.is_sanctioned, true);
+    // Nothing that identifies a real supplier may appear in the sanctioned
+    // record: its name, slug, id, a pill value, a provenance source_ref, a
+    // document URL or a place. Collect every such value from the real
+    // fixtures and fail if the sanctioned one holds any of them.
+    const identifying = (input: RecordInput): Map<string, string> => {
+      const out = new Map<string, string>();
+      const p = input.profile;
+      const add = (kind: string, v: unknown) => {
+        if (typeof v === "string" && v.length > 0) out.set(v, kind);
+      };
+      add("name", p.supplier.company_name);
+      add("slug", p.supplier.slug);
+      add("id", p.supplier.id);
+      for (const pill of p.pills) add("pill value", pill.value);
+      for (const row of p.provenance) add("source_ref", row.source_ref);
+      for (const r of [p.rsc_remediation ?? []].flat() as Record<string, unknown>[]) {
+        for (const [k, v] of Object.entries(r)) if (k.endsWith("_url")) add("document url", v);
+      }
+      return out;
+    };
+    const sanctionedValues = identifying(sanctionedInput());
+    for (const { name, input } of FIXTURES) {
+      for (const [value, kind] of identifying(input)) {
+        assert.equal(sanctionedValues.has(value), false, `the sanctioned placeholder carries ${name}'s real ${kind} "${value}"`);
+      }
+    }
+    const placeholder = sanctionedInput().profile.supplier;
+    assert.equal(placeholder.city, null, "the sanctioned placeholder names a place");
   });
 
   it("every building a fixture names is exported, so a test cannot misspell one into passing", () => {

@@ -40,7 +40,7 @@ beforeEach(() => {
   resetFake();
   fake.tables.suppliers = [
     row(A, "aboni-knitwear"),
-    row(B, "zaheen-knitwear", { is_sanctioned: true }),
+    row(B, "sanctioned-knit", { is_sanctioned: true }),
     row(C, "gone-ltd", { is_published: false }),
   ];
 });
@@ -56,7 +56,7 @@ describe("GET /api/v1/suppliers", () => {
   });
 
   it("resolves ids and slugs together, once each, published only, sanction flagged", async () => {
-    const res = await get(`?ids=${A},${C}&slugs=zaheen-knitwear,aboni-knitwear`);
+    const res = await get(`?ids=${A},${C}&slugs=sanctioned-knit,aboni-knitwear`);
     assert.equal(res.status, 200);
     const { rows } = (await res.json()) as { rows: { id: string; slug: string; is_sanctioned: boolean }[] };
     assert.deepEqual(rows.map((r) => r.id).sort(), [A, B].sort(), "the unpublished supplier came back, or one came back twice");

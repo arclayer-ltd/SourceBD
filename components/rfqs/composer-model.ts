@@ -17,7 +17,6 @@ export type ComposerTarget = {
   place: string | null;
   type: string;
   sanctioned: boolean;
-  sanctionSample?: boolean;
   /** Someone has claimed this company on SourceBD: only then can it read an RFQ (`rfq_list`, `rfq_get`). */
   claimed: boolean;
 };

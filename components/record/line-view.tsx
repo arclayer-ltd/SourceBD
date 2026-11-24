@@ -88,7 +88,7 @@ export function LineView({ model, mode, today = new Date() }: { model: ProductSh
       className={cn("flex min-h-0 flex-1 flex-col bg-surface outline-none", page && "max-sm:pb-[calc(theme(spacing.action-bar)_+_env(safe-area-inset-bottom))]")}
     >
       {model.sanctioned ? (
-        <SanctionBanner title={`Sanctioned${model.sanctionSample ? " · sample record" : ""}: matched on a sanctions screen.`} detail={REFUSAL} />
+        <SanctionBanner title={"Sanctioned: matched on a sanctions screen."} detail={REFUSAL} />
       ) : null}
 
       <div className={cn("flex min-h-12 items-center justify-between gap-3 px-4 max-sm:hidden sm:px-6", page && "lg:px-8")}>
